@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | ExamVault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <a href="index.html" class="nav-logo">
+            <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div class="nav-logo-text">Exam<span>Vault</span></div>
+        </a>
+        
+        <div class="nav-links">
+            <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+            <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+            <a href="about.html" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a>
+            <a href="contact.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Contact</a>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn-icon" id="theme-toggle" aria-label="Toggle Adaptive Application Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
+                <a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>
+            </div>
+
+            <button class="hamburger" id="hamburger">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+    <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+    <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+    <a href="dashboard.html" class="nav-link" id="mobile-profile-link"><i class="fa-solid fa-user"></i> My Profile</a>
+</div>
+
+    <main>
+        <div class="page-header text-center">
+            <div class="page-header-content stagger">
+                <h1>About ExamVault</h1>
+                <p style="margin: 0 auto;">Democratizing education by providing high-quality, accessible resources for every student preparing for competitive exams.</p>
+            </div>
+        </div>
+
+        <section class="about-section">
+            <div class="about-grid stagger">
+                <div class="about-content">
+                    <h2 class="section-title">Our Mission</h2>
+                    <p class="section-desc" style="margin-left: 0;">We believe that access to quality educational resources should not be a privilege. ExamVault was created to bridge the gap between hard-working students and the materials they need to succeed.</p>
+                    <p class="section-desc" style="margin-left: 0; margin-top: 1rem;">Our platform meticulously organizes thousands of previous year papers, provides verified step-by-step solutions, and fosters a community where students can discuss and learn from each other.</p>
+                    
+                    <div class="hero-stats" style="margin-top: 2rem;">
+                        <div class="hero-stat">
+                            <div class="hero-stat-num text-accent">50K+</div>
+                            <div class="hero-stat-label">Active Students</div>
+                        </div>
+                        <div class="hero-stat">
+                            <div class="hero-stat-num text-accent">98%</div>
+                            <div class="hero-stat-label">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="about-visual">
+                    <i class="fa-solid fa-book-open-reader" style="color: white; z-index: 2; position: relative;"></i>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" style="background: var(--bg-tertiary);">
+            <div class="section-container">
+                <div class="section-header stagger">
+                    <span class="section-eyebrow">The Creators</span>
+                    <h2 class="section-title">Meet Our Team</h2>
+                    <p class="section-desc">Passionate educators and developers dedicated to your success.</p>
+                </div>
+                
+                <div class="team-grid stagger">
+                    <div class="team-card">
+                        <div class="team-avatar">A</div>
+                        <div class="team-name">[ADMIN NAME]</div>
+                        <div class="team-role">Founder & Lead Developer</div>
+                        <div class="team-bio">Built ExamVault to ensure no student fails due to a lack of resources.</div>
+                    </div>
+                    <div class="team-card">
+                        <div class="team-avatar">S</div>
+                        <div class="team-name">Sarah Jenkins</div>
+                        <div class="team-role">Head of Content</div>
+                        <div class="team-bio">Former professor ensuring every solution is 100% accurate.</div>
+                    </div>
+                    <div class="team-card">
+                        <div class="team-avatar">R</div>
+                        <div class="team-name">Rahul Sharma</div>
+                        <div class="team-role">Community Manager</div>
+                        <div class="team-bio">Keeps the discussion forums helpful, toxic-free, and engaging.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-top">
+                <div>
+                    <h3 class="footer-heading">ExamVault</h3>
+                    <p class="footer-brand-desc">Your ultimate destination for competitive exam preparation. Providing high-quality solutions and an ad-free learning environment.</p>
+                </div>
+                <div>
+                    <h3 class="footer-heading">Quick Links</h3>
+                    <div class="footer-links">
+                        <a href="exam.html" class="footer-link">All Exams</a>
+                        <a href="dashboard.html" class="footer-link">My Dashboard</a>
+                        <a href="about.html" class="footer-link">About Us</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="footer-admin-card">
+                        <div class="footer-admin-title">Dedicated By</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-user-shield"></i> Admin: [ADMIN NAME]</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-envelope"></i> [ADMIN EMAIL]</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-phone"></i> [ADMIN CONTACT]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-copy">&copy; 2026 ExamVault. All rights reserved.</div>
+            </div>
+        </div>
+    </footer>
+    <script src="js/script.js"></script>
+</body>
+</html>

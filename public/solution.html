@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paper Solution | ExamVault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main>
+        <nav class="navbar" id="navbar">
+            <div class="nav-container">
+                <a href="index.html" class="nav-logo">
+                    <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                    <div class="nav-logo-text">Exam<span>Vault</span></div>
+                </a>
+                <div class="nav-links">
+                    <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+                    <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+                    <a href="about.html" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a>
+                    <a href="contact.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Contact</a>
+                </div>
+                <div class="nav-actions">
+                    <button class="btn-icon" id="theme-toggle" aria-label="Toggle Adaptive Application Theme">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                    <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
+                        <a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>
+                    </div>
+                    <button class="hamburger" id="hamburger">
+                        <span></span><span></span><span></span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="solution-body" style="max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem;">
+            
+            <div class="solution-header-content" style="margin-bottom: 1.5rem;">
+                <div class="solution-breadcrumb" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.8rem;">
+                    <a href="exam.html">Exams</a> / <span id="breadcrumb-exam-type">Loading...</span> / <span>Paper Solution</span>
+                </div>
+                <h1 id="dynamic-paper-title" style="font-size: 2.3rem; margin-bottom: 0.8rem; color: var(--text);">Loading Solution...</h1>
+                
+                <div style="display: flex; gap: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <div><i class="fa-regular fa-calendar"></i> Uploaded: <span id="solution-year">----</span></div>
+                    <div><i class="fa-solid fa-eye"></i> Views: <span id="solution-views">0</span></div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <button class="btn-outline" id="like-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">
+                    <i class="fa-regular fa-heart"></i> <span id="like-text">Like</span> <span id="likes-count" style="font-size: 0.8rem; opacity: 0.8;"></span>
+                </button>
+
+                <button class="btn-outline" id="dislike-btn" style="display: flex; align-items: center; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">
+                    <i class="fa-regular fa-thumbs-down"></i>
+                </button>
+
+                <button class="btn-outline" id="save-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">
+                    <i class="fa-regular fa-bookmark"></i> <span id="save-text">Save</span>
+                </button>
+
+                <button class="btn-outline" id="share-btn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">
+                    <i class="fa-solid fa-share-nodes"></i> Share
+                </button>
+
+                <div style="margin-left: auto; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="#" id="view-solution-btn" class="btn-primary" target="_blank" style="background: #00b894; display: none; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 8px;">
+                        <i class="fa-solid fa-play"></i> Watch Video
+                    </a>
+                    <a href="#" id="download-pdf-btn" class="btn-primary" target="_blank" style="text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 8px;">
+                        <i class="fa-solid fa-download"></i> Download PDF
+                    </a>
+                </div>
+            </div>
+
+            <div class="pdf-container glass-card" id="pdf-viewer-container" style="margin-bottom: 2.5rem;">
+                <iframe src="" id="pdf-frame" width="100%" height="750px" style="border: none; border-radius: 12px; background: #1e1e24;"></iframe>
+            </div>
+
+            <div class="paper-details-card" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; margin-bottom: 2.5rem; border: 1px solid rgba(255,255,255,0.08);">
+                <h3 style="margin-top: 0; margin-bottom: 1rem; color: var(--primary);">Paper Specifications</h3>
+                <div id="dynamic-paper-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.95rem;">
+                    </div>
+            </div>
+
+            <div class="comments-section" id="comments-section" style="background: rgba(255,255,255,0.02); padding: 2rem; border-radius: 12px;">
+                <h3 style="margin-top: 0;">Discussion & Doubts (<span id="comment-count">0</span>)</h3>
+                
+                <div class="comment-input-area" style="display: flex; gap: 1rem; margin-top: 1.5rem; margin-bottom: 2rem;">
+                    <div class="comment-avatar" style="width: 45px; height: 45px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold;">U</div>
+                    <div class="comment-input-box" style="flex: 1; display: flex; flex-direction: column; gap: 0.8rem;">
+                        <textarea id="comment-body" placeholder="Ask a doubt or share your thoughts on this paper..." style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: var(--text); min-height: 80px;"></textarea>
+                        <button id="post-comment-btn" class="btn-primary" style="align-self: flex-end; padding: 0.6rem 1.5rem; border-radius: 8px; cursor: pointer;">Post Comment</button>
+                    </div>
+                </div>
+
+                <div class="comment-list" id="comment-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                    </div>
+            </div>
+
+        </div>
+    </main>
+    
+    <script src="js/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | ExamVault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div class="nav-logo-text">Exam<span>Vault</span></div>
+            </a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+                <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn-icon" id="theme-toggle"><i class="fa-solid fa-moon"></i></button>
+                <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
+                    </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="profile-page">
+        <section class="profile-hero stagger">
+            <div class="profile-photo-shell">
+                <div class="profile-photo" id="profile-photo-preview">
+                    <img id="dash-avatar-img" alt="Profile photo" hidden>
+                    <span id="dash-avatar">U</span>
+                </div>
+                <input type="file" id="profile-photo-input" accept="image/*" hidden>
+                <div class="profile-photo-actions">
+                    <button type="button" class="profile-tool-btn" id="profile-photo-btn">
+                        <i class="fa-solid fa-camera"></i> Upload Photo
+                    </button>
+                    <button type="button" class="profile-tool-btn ghost" id="profile-photo-remove">
+                        <i class="fa-solid fa-trash-can"></i> Remove
+                    </button>
+                </div>
+            </div>
+            <div class="profile-hero-copy">
+                <p class="profile-kicker">My Profile</p>
+                <h1>Welcome back, <span id="dash-name">Student</span>!</h1>
+                <p class="profile-email-line"><i class="fa-solid fa-envelope"></i> <span id="dash-email">student@example.com</span></p>
+                <div class="profile-hero-meta">
+                    <span><i class="fa-solid fa-shield-halved"></i> <span id="profile-status">Verified account</span></span>
+                    <span><i class="fa-solid fa-user-graduate"></i> <span id="dash-role">Student</span></span>
+                    <span><i class="fa-solid fa-id-card"></i> ID: <span id="dash-account-id">--</span></span>
+                </div>
+                <div class="profile-hero-actions">
+                    <a href="papers.html" class="profile-hero-button"><i class="fa-solid fa-book-open"></i> Browse Papers</a>
+                    <a href="#saved-papers-section" class="profile-hero-button secondary"><i class="fa-solid fa-bookmark"></i> Saved Papers</a>
+                    <a href="#admin-message-box" class="profile-hero-button secondary"><i class="fa-solid fa-headset"></i> Contact Admin</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-stats-grid stagger" aria-label="Profile summary">
+            <article class="profile-stat-card">
+                <div class="profile-stat-icon blue"><i class="fa-solid fa-bookmark"></i></div>
+                <h3 id="saved-papers-count">0</h3>
+                <p>Saved Papers</p>
+            </article>
+            <article class="profile-stat-card">
+                <div class="profile-stat-icon teal"><i class="fa-solid fa-comments"></i></div>
+                <h3>Active</h3>
+                <p>Community Status</p>
+            </article>
+            <article class="profile-stat-card">
+                <div class="profile-stat-icon green"><i class="fa-solid fa-user-check"></i></div>
+                <h3 id="profile-account-role">User</h3>
+                <p>Account Type</p>
+            </article>
+            <article class="profile-stat-card">
+                <div class="profile-stat-icon amber"><i class="fa-solid fa-calendar-check"></i></div>
+                <h3 id="profile-member-since">Today</h3>
+                <p>Member Since</p>
+            </article>
+        </section>
+
+        <div class="profile-workspace">
+            <section class="profile-panel">
+                <div class="profile-panel-header">
+                    <div>
+                        <p class="profile-panel-kicker">Profile Tools</p>
+                        <h2>Personal Details</h2>
+                    </div>
+                    <span id="profile-details-status" class="profile-save-status" aria-live="polite"></span>
+                </div>
+                <form id="profile-details-form" class="profile-details-form">
+                    <label class="profile-field">
+                        <span>Full Name</span>
+                        <input type="text" id="profile-fullname" readonly>
+                    </label>
+                    <label class="profile-field">
+                        <span>Email Address</span>
+                        <input type="email" id="profile-email" readonly>
+                    </label>
+                    <label class="profile-field">
+                        <span>Phone Number</span>
+                        <input type="tel" id="profile-phone" placeholder="Add your phone number">
+                    </label>
+                    <label class="profile-field">
+                        <span>Institution</span>
+                        <input type="text" id="profile-institution" placeholder="School, college, or coaching">
+                    </label>
+                    <label class="profile-field">
+                        <span>Target Exam</span>
+                        <input type="text" id="profile-target-exam" placeholder="JEE, NEET, UPSC, SSC...">
+                    </label>
+                    <label class="profile-field">
+                        <span>City</span>
+                        <input type="text" id="profile-city" placeholder="Your city">
+                    </label>
+                    <label class="profile-field">
+                        <span>Account Role</span>
+                        <input type="text" id="profile-role-input" readonly>
+                    </label>
+                    <label class="profile-field">
+                        <span>Preferred Study Time</span>
+                        <input type="text" id="profile-study-time" placeholder="Morning, evening, weekends...">
+                    </label>
+                    <div class="profile-actions-row">
+                        <button type="submit" class="btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Details</button>
+                        <button type="button" class="profile-tool-btn ghost" id="clear-profile-details"><i class="fa-solid fa-rotate-left"></i> Clear Personal Fields</button>
+                    </div>
+                </form>
+            </section>
+
+            <aside class="profile-side-stack">
+                <section class="profile-panel">
+                    <div class="profile-panel-header compact">
+                        <div>
+                            <p class="profile-panel-kicker">Shortcuts</p>
+                            <h2>Quick Tools</h2>
+                        </div>
+                    </div>
+                    <div class="profile-tool-list">
+                        <a href="papers.html" class="profile-tool-link"><i class="fa-solid fa-magnifying-glass"></i><span>Find new papers</span></a>
+                        <a href="solution.html" class="profile-tool-link"><i class="fa-solid fa-file-lines"></i><span>Open solutions</span></a>
+                        <a href="contact.html" class="profile-tool-link"><i class="fa-solid fa-circle-question"></i><span>Support center</span></a>
+                        <a href="forgot-password.html" class="profile-tool-link"><i class="fa-solid fa-key"></i><span>Reset password</span></a>
+                    </div>
+                </section>
+
+                <section class="profile-panel">
+                    <div class="profile-panel-header compact">
+                        <div>
+                            <p class="profile-panel-kicker">Security</p>
+                            <h2>Account Safety</h2>
+                        </div>
+                    </div>
+                    <div class="profile-security-list">
+                        <div><span>Email verification</span><strong>Active</strong></div>
+                        <div><span>Session</span><strong>Signed in</strong></div>
+                        <div><span>Login redirect</span><strong>Home page</strong></div>
+                    </div>
+                    <button type="button" class="profile-tool-btn danger" id="profile-logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+                </section>
+            </aside>
+        </div>
+
+        <section class="profile-panel profile-saved-section" id="saved-papers-section">
+            <div class="profile-section-title">
+                <div>
+                    <p class="profile-panel-kicker">Library</p>
+                    <h2>Saved Papers</h2>
+                </div>
+                <a href="papers.html" class="profile-tool-btn">Browse Papers</a>
+            </div>
+            <div id="saved-papers-list" class="saved-papers-list" aria-live="polite">
+                <p style="color: var(--text-muted); margin: 0;">Loading saved papers...</p>
+            </div>
+        </section>
+
+        <section class="profile-panel admin-message-box" id="admin-message-box">
+            <div class="profile-panel-header">
+                <div>
+                    <p class="profile-panel-kicker">Help Desk</p>
+                    <h2><i class="fa-solid fa-headset"></i> Contact Admin</h2>
+                </div>
+            </div>
+            <p class="profile-panel-copy">Have a specific request, found an issue with a paper, or need help? Send a direct message to the admin.</p>
+            <form id="admin-msg-form" class="profile-message-form">
+                <input type="text" id="admin-msg-subject" placeholder="Subject (e.g., Request for JEE 2023 Papers)" required>
+                <textarea id="admin-msg-body" rows="4" placeholder="Describe your query..." required></textarea>
+                <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Send Message</button>
+            </form>
+        </section>
+
+        <section class="danger-zone profile-panel">
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Account Management</h3>
+            <p>Once you delete your account, there is no going back. Please be certain.</p>
+            <button class="profile-tool-btn danger">Delete Account</button>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

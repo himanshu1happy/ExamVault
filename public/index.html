@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamVault | Premium Question Papers & Solutions</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="loader-logo">Exam<span>Vault</span></div>
+        <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+    </div>
+    <nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <a href="index.html" class="nav-logo">
+            <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div class="nav-logo-text">Exam<span>Vault</span></div>
+        </a>
+        
+        <div class="nav-links">
+            <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+            <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+            <a href="about.html" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a>
+            <a href="contact.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Contact</a>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn-icon" id="theme-toggle" aria-label="Toggle Adaptive Application Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
+                <a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>
+            </div>
+
+            <button class="hamburger" id="hamburger">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+    <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+    <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+    <a href="dashboard.html" class="nav-link" id="mobile-profile-link"><i class="fa-solid fa-user"></i> My Profile</a>
+</div>
+            
+
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-search">
+            <i class="fa-solid fa-search nav-search-icon"></i>
+            <input type="text" id="mobile-search-input" placeholder="Search...">
+        </div>
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="exam.html" class="nav-link">Exams</a>
+        <a href="papers.html" class="nav-link">Papers</a>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+    </div>
+
+    <main>
+        <section class="hero">
+            <div class="hero-container">
+                <div class="hero-content stagger">
+                    <div class="hero-badge"><i class="fa-solid fa-star"></i> #1 Educational Platform</div>
+                    <h1 class="hero-title">Master Your Exams with <span class="highlight">Past Papers</span></h1>
+                    <p class="hero-desc">Access thousands of previous year question papers and detailed solutions for JEE, NEET, UPSC, and more. All in one place.</p>
+                    <div class="hero-actions">
+                        <a href="papers.html" class="btn-primary">Explore Papers <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="signup.html" class="btn-secondary" data-guest-only>Create Free Account</a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="hero-stat">
+                            <div class="hero-stat-num">500+</div>
+                            <div class="hero-stat-label">Exams Covered</div>
+                        </div>
+                        <div class="hero-stat">
+                            <div class="hero-stat-num">10k+</div>
+                            <div class="hero-stat-label">Solutions Uploaded</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hero-visual">
+                    <div class="hero-card-stack">
+                        <div class="hero-float-card">
+                            <div class="hero-card-title">JEE Advanced 2025</div>
+                            <div class="hero-card-value">Paper 1 & 2</div>
+                            <span class="hero-card-badge badge-blue">New Upload</span>
+                        </div>
+                        <div class="hero-float-card">
+                            <div class="hero-card-title">GATE CS</div>
+                            <div class="hero-card-value">Solutions</div>
+                            <span class="hero-card-badge badge-green">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <button id="back-to-top" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i></button>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-top">
+                <div>
+                    <h3 class="footer-heading">ExamVault</h3>
+                    <p class="footer-brand-desc">Your ultimate destination for competitive exam preparation. Providing high-quality solutions and an ad-free learning environment.</p>
+                    <div class="footer-social">
+                        <a href="#" class="social-btn"><i class="fa-brands fa-twitter"></i></a>
+                        <a href="#" class="social-btn"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="social-btn"><i class="fa-brands fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="footer-heading">Quick Links</h3>
+                    <div class="footer-links">
+                        <a href="exam.html" class="footer-link">All Exams</a>
+                        <a href="papers.html" class="footer-link">All Papers</a>
+                        <a href="dashboard.html" class="footer-link">My Dashboard</a>
+                        <a href="about.html" class="footer-link">About Us</a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="footer-heading">Legal</h3>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Privacy Policy</a>
+                        <a href="#" class="footer-link">Terms of Service</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="footer-admin-card">
+                        <div class="footer-admin-title">Dedicated By</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-user-shield"></i> Admin: Himanshu</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-envelope"></i> himanshu@example.com</div>
+                        <div class="footer-admin-item"><i class="fa-solid fa-phone"></i> +91 98765 43210</div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-copy">&copy; 2026 ExamVault. All rights reserved.</div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

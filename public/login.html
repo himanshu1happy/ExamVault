@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | ExamVault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-container stagger">
+            <div class="auth-logo">
+                <a href="index.html">
+                    <div class="auth-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                    <div class="auth-logo-text">ExamVault</div>
+                </a>
+            </div>
+            
+            <div class="auth-card glass-card">
+                <h2 class="auth-title">Welcome Back</h2>
+                <p class="auth-subtitle">Sign in to access your saved papers and solutions.</p>
+                
+                <form action="/api/login" method="POST" id="login-form">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address</label>
+                        <div class="form-input-wrapper">
+                            <i class="fa-solid fa-envelope form-icon"></i>
+                            <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" required>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group" style="position: relative; margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">Password</label>
+                        <div style="position: relative;">
+                            <input type="password" id="password" name="password" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg-surface); padding-right: 2.5rem;">
+                            
+                            <i class="fa-regular fa-eye toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-options">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="remember" name="remember">
+                            <label for="remember">Remember me</label>
+                        </div>
+                        <a href="forgot-password.html" class="form-link">Forgot Password?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn-auth">Sign In</button>
+                </form>
+                
+                <div class="auth-divider"><span>OR CONTINUE WITH</span></div>
+                
+                <button class="btn-google">
+                    <i class="fa-brands fa-google"></i> Google
+                </button>
+                
+                <div class="auth-footer">
+                    Don't have an account? <a href="signup.html">Create one for free</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

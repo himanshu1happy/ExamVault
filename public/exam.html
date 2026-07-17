@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Exams | ExamVault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main>
+        <div class="page-header">
+            <div class="page-header-content text-center stagger">
+                <h1>Browse All Exams</h1>
+                <p style="margin: 0 auto;">Select your target examination to view previous year question papers, mock tests, and detailed solutions.</p>
+            </div>
+        </div>
+        <nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <a href="index.html" class="nav-logo">
+            <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div class="nav-logo-text">Exam<span>Vault</span></div>
+        </a>
+        
+        <div class="nav-links">
+            <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+            <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+            <a href="about.html" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a>
+            <a href="contact.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Contact</a>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn-icon" id="theme-toggle" aria-label="Toggle Adaptive Application Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
+                <a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>
+            </div>
+
+            <button class="hamburger" id="hamburger">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+    <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
+    <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
+    <a href="dashboard.html" class="nav-link" id="mobile-profile-link"><i class="fa-solid fa-user"></i> My Profile</a>
+</div>
+
+        <section class="section">
+            <div class="section-container">
+                <div class="papers-filter stagger">
+                    <button class="filter-btn active">All Exams</button>
+                    <button class="filter-btn">Engineering</button>
+                    <button class="filter-btn">Medical</button>
+                    <button class="filter-btn">Government</button>
+                    <button class="filter-btn">Management</button>
+                </div>
+
+                <div class="exam-grid stagger">
+                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                        <div class="exam-card-icon icon-blue"><i class="fa-solid fa-rocket"></i></div>
+                        <h3 class="exam-card-name">JEE Main</h3>
+                        <p class="exam-card-full">Joint Entrance Exam</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 145 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                        <div class="exam-card-icon icon-green"><i class="fa-solid fa-stethoscope"></i></div>
+                        <h3 class="exam-card-name">NEET UG</h3>
+                        <p class="exam-card-full">National Eligibility Entrance Test</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 82 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                        <div class="exam-card-icon icon-purple"><i class="fa-solid fa-building-columns"></i></div>
+                        <h3 class="exam-card-name">UPSC CSE</h3>
+                        <p class="exam-card-full">Civil Services Exam</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 210 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                        <div class="exam-card-icon icon-pink"><i class="fa-solid fa-microchip"></i></div>
+                        <h3 class="exam-card-name">GATE</h3>
+                        <p class="exam-card-full">Graduate Aptitude Test</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 115 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

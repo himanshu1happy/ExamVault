@@ -1,0 +1,13 @@
+# Dependency directories
+node_modules/
+
+# Environment variables (SUPER SECRET)
+.env
+
+# Uploaded files (Taaki test PDFs aur images upload na ho jayein)
+uploads/
+public/uploads/
+
+# OS generated files
+.DS_Store
+Thumbs.db
