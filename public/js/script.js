@@ -10,8 +10,6 @@ const API_BASE = 'https://examvault-live.onrender.com/api';
 
 const token = localStorage.getItem('examvault_token');
 const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
-    const token = localStorage.getItem('examvault_token');
-    const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 
     // ==========================================
     // 🌍 SYSTEM 1: ADAPTIVE GLOBAL THEME CONTROLLER
