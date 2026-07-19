@@ -128,7 +128,7 @@
             const thinkingMessage = addMessage('assistant', 'Thinking...');
 
             try {
-                const response = await fetch('http://localhost:5001/api/ai/study-assistant', {
+                const response = await fetch('https://examvault-live.onrender.com/api/ai/study-assistant', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

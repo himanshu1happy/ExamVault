@@ -5,10 +5,8 @@
 
  document.addEventListener('DOMContentLoaded', () => {
 
-    // Smart API Link: Laptop pe localhost, Internet pe Live Cloud Link! 🚀
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5001/api'
-    : 'https://examvault-live.onrender.com/api';
+    // Production API base URL
+const API_BASE = 'https://examvault-live.onrender.com/api';
 
 const token = localStorage.getItem('examvault_token');
 const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
@@ -106,7 +104,7 @@ const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 });
 
     // --- GLOBAL CONFIGURATION ---
-    const API_BASE = 'http://localhost:5001/api';
+    const API_BASE = 'https://examvault-live.onrender.com/api';
     const token = localStorage.getItem('examvault_token');
     const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 
@@ -1165,11 +1163,11 @@ const cardHTML = `
         
         <div class="paper-actions" style="display: flex; gap: 0.6rem; align-items: center;">
             
-            <a href="http://localhost:5001${paper.pdfUrl}" target="_blank" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
+            <a href="https://examvault-live.onrender.com${paper.pdfUrl}" target="_blank" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
                 <i class="fa-solid fa-eye"></i> View Paper
             </a>
 
-            <a href="http://localhost:5001${paper.pdfUrl}" download class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
+            <a href="https://examvault-live.onrender.com${paper.pdfUrl}" download class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
                 <i class="fa-solid fa-download"></i> Download
             </a>
             
