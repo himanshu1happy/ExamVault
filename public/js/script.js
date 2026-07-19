@@ -5,7 +5,13 @@
 
  document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE = 'http://localhost:5001/api';
+    // Smart API Link: Laptop pe localhost, Internet pe Live Cloud Link! 🚀
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5001/api'
+    : 'https://examvault-live.onrender.com/api';
+
+const token = localStorage.getItem('examvault_token');
+const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
     const token = localStorage.getItem('examvault_token');
     const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 
