@@ -1,16 +1,20 @@
 const nodemailer = require('nodemailer');
-const dns = require('dns'); // 👈 1. Node ka internal DNS module bulaya
-
-// 🚀 2. THE MASTER OVERRIDE: Node.js ko zabardasti bolo ki hamesha IPv4 pehle use kare!
-// Is line ke baad kabhi zindagi me 'ENETUNREACH 2404:...' wala error nahi aayega!
-dns.setDefaultResultOrder('ipv4first');
+const dns = require('dns');
 
 const sendEmail = async (options) => {
-    // 3. Create a transporter
+    // 🚀 The Ultimate Node 24 + Render Bulletproof Configuration:
     const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 587,               
-        secure: false,           
+        port: 587,
+        secure: false,
+        family: 4,                  // 👈 1. Force IPv4
+        autoSelectFamily: false,    // 👈 2. KILL-SWITCH 1: Node 24 ke "Happy Eyeballs" ko band karta hai!
+        lookup: (hostname, options, callback) => {
+            // 👈 3. KILL-SWITCH 2: DNS ko strictly block karta hai IPv6 dhoondhne se!
+            options = options || {};
+            options.family = 4;
+            dns.lookup(hostname, options, callback);
+        },
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
@@ -18,18 +22,18 @@ const sendEmail = async (options) => {
         tls: {
             rejectUnauthorized: false
         },
-        connectionTimeout: 10000 
+        connectionTimeout: 10000
     });
 
-    // 4. Define the email options
+    // Define the email options
     const mailOptions = {
         from: `ExamVault Support <${process.env.EMAIL_USER}>`,
         to: options.email,
         subject: options.subject,
-        html: options.message 
+        html: options.message
     };
 
-    // 5. Actually send the email
+    // Actually send the email
     await transporter.sendMail(mailOptions);
 };
 
