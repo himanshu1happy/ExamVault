@@ -1,23 +1,35 @@
-const { Resend } = require('resend');
-
-// Render ke environment se automatic API key utha lega
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+// 🚀 Brevo HTTP API: Bypasses Render Firewall & Sends OTP to ALL Users Worldwide!
 const sendEmail = async (options) => {
     try {
-        // 🚀 HTTP API ke zariye email bhejega (No SMTP Port needed, Firewall bypassed!)
-        const data = await resend.emails.send({
-            from: 'ExamVault Support <onboarding@resend.dev>', // Free testing sender
-            to: options.email,
-            subject: options.subject,
-            html: options.message
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { 
+                    name: "ExamVault Support", 
+                    email: "himanshubkb@gmail.com" // 👈 Tumhari Verified Gmail ID
+                },
+                to: [{ email: options.email }], // 👈 KISI KI BHI EMAIL HO, CHALA JAYEGA!
+                subject: options.subject,
+                htmlContent: options.message
+            })
         });
+
+        const data = await response.json();
         
-        console.log("Email sent successfully via Resend ID:", data.id);
+        if (!response.ok) {
+            throw new Error(`Brevo API Error: ${JSON.stringify(data)}`);
+        }
+        
+        console.log("✅ Email sent successfully to ALL users! Message ID:", data.messageId);
         return data;
     } catch (error) {
-        console.error("Resend Email Error:", error);
-        throw new Error("Could not send email via Resend API");
+        console.error("❌ Email sending error:", error);
+        throw new Error("Could not send email via Brevo API");
     }
 };
 
