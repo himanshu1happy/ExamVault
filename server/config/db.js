@@ -1,3 +1,9 @@
+const dns = require('dns');
+// Node.js ko strictly bolo ki IPv4 pehle use kare (IPv6 bypass)
+dns.setDefaultResultOrder('ipv4first'); 
+
+
+
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
