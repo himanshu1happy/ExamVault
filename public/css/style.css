@@ -1150,6 +1150,26 @@ footer { background: var(--bg-secondary); border-top: 1px solid var(--border-col
 .paper-meta { font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap; }
 .paper-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 
+#otp-input {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  border: 2px solid var(--accent-blue) !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.18) !important;
+  caret-color: var(--accent-blue);
+}
+
+#otp-input::placeholder {
+  color: #7c86a1 !important;
+  opacity: 1;
+}
+
+#otp-input:focus {
+  background: #ffffff !important;
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 5px rgba(139, 92, 246, 0.28) !important;
+  outline: none;
+}
+
 /* === ABOUT PAGE === */
 .about-section { padding: 5rem 1.5rem; }
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; max-width: 1280px; margin: 0 auto; }
