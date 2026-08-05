@@ -680,6 +680,78 @@ if (verifyOtpBtn) {
     likeButton?.addEventListener('click', (event) => togglePaperReaction(event, 'like'));
     dislikeButton?.addEventListener('click', (event) => togglePaperReaction(event, 'dislike'));
     // --- 5.a SOLUTION PAGE DATA HYDRATION (solution.html) ---
+    const paperData = { videoLink: '', pdfUrl: '', solutionUrl: '' };
+
+    const ensureToastContainer = () => {
+        let container = document.getElementById('examvault-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'examvault-toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        return container;
+    };
+
+    const showToast = (message, type = 'info') => {
+        const container = ensureToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 250);
+        }, 2400);
+    };
+
+    const openViewer = (url) => {
+        const safeUrl = (url || '').trim();
+        if (!safeUrl) return;
+
+        const fullUrl = safeUrl.startsWith('http') ? safeUrl : `${window.location.origin}${safeUrl}`;
+        window.open(fullUrl, '_blank');
+    };
+
+    const handleWatchVideo = () => {
+        const videoLink = (paperData.videoLink || '').trim();
+
+        if (!videoLink) {
+            showToast('Oops! No video solution has been uploaded for this paper yet.', 'error');
+            return;
+        }
+
+        openViewer(videoLink);
+    };
+
+    const handleQuestionPaperView = () => {
+        const paperUrl = (paperData.pdfUrl || '').trim();
+
+        if (!paperUrl) {
+            showToast('Question paper is not available yet!', 'error');
+            return;
+        }
+
+        openViewer(paperUrl);
+    };
+
+    const handleSolutionPdfView = () => {
+        const solutionUrl = (paperData.solutionUrl || '').trim();
+
+        if (!solutionUrl) {
+            showToast('Solution PDF not available yet!', 'error');
+            return;
+        }
+
+        openViewer(solutionUrl);
+    };
+
     const isSolutionPage = window.location.pathname.includes('solution.html');
 
     if (isSolutionPage) {
@@ -725,22 +797,54 @@ if (verifyOtpBtn) {
                         `;
                     }
 
+                    paperData.videoLink = data.data.solutionUrl || '';
+                    paperData.pdfUrl = data.data.pdfUrl || '';
+                    paperData.solutionUrl = data.data.solutionUrl || '';
+
                     // 3. Solution Video Button
                     const solutionBtn = document.getElementById('view-solution-btn');
-                    if (solutionBtn && data.data.solutionUrl) {
+                    if (solutionBtn) {
                         solutionBtn.style.display = 'inline-flex';
-                        solutionBtn.href = data.data.solutionUrl;
+                        solutionBtn.href = paperData.videoLink || '#';
+                        solutionBtn.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            handleWatchVideo();
+                        });
+                    }
+
+                    // 4. Question Paper View Button
+                    const viewPaperBtn = document.getElementById('view-paper-btn');
+                    if (viewPaperBtn) {
+                        viewPaperBtn.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            handleQuestionPaperView();
+                        });
+                    }
+
+                    // 5. Solution PDF View Button
+                    const viewSolutionPdfBtn = document.getElementById('view-solution-pdf-btn');
+                    if (viewSolutionPdfBtn) {
+                        viewSolutionPdfBtn.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            handleSolutionPdfView();
+                        });
                     }
 
                     // 🚨 CORE FEATURE FIX: PDF VIEWER & DOWNLOAD BUTTON HYDRATION
                     const downloadBtn = document.getElementById('download-pdf-btn');
-                    if (downloadBtn && data.data.pdfUrl) {
-                        downloadBtn.href = data.data.pdfUrl; // Asli link button mein chala gaya
+                    if (downloadBtn) {
+                        downloadBtn.href = paperData.pdfUrl || '#';
+                        downloadBtn.addEventListener('click', (event) => {
+                            if (!paperData.pdfUrl || paperData.pdfUrl.trim() === '') {
+                                event.preventDefault();
+                                showToast('Question paper is not available yet!', 'error');
+                            }
+                        });
                     }
 
                     const iframe = document.getElementById('pdf-frame');
-                    if (iframe && data.data.pdfUrl) {
-                        iframe.src = data.data.pdfUrl; // Iframe mein PDF load ho gayi
+                    if (iframe) {
+                        iframe.src = paperData.pdfUrl || '';
                     }
 
                 }
