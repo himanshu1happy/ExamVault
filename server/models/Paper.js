@@ -8,6 +8,7 @@ const PaperSchema = new mongoose.Schema({
     difficulty: { type: String, default: 'Moderate', enum: ['Easy', 'Moderate', 'Hard'] },
     pdfUrl: { type: String, required: true },
     solutionUrl: { type: String }, // Path to folder file or AWS S3 bucket string
+    videoUrl: { type: String },
     adminNotes: { type: String , select : false},
     
     views: { type: Number, default: 0 },

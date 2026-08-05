@@ -3,10 +3,13 @@
    Full-Stack API & Animation Integration
    ======================================== */
 
- document.addEventListener('DOMContentLoaded', () => {
+const PRODUCTION_API_ORIGIN = 'https://examvault-live.onrender.com';
+const API_ORIGIN = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+    ? window.location.origin
+    : PRODUCTION_API_ORIGIN;
+const API_BASE = `${API_ORIGIN}/api`;
 
-    // Production API base URL
-const API_BASE = 'https://examvault-live.onrender.com/api';
+ document.addEventListener('DOMContentLoaded', () => {
 
 const token = localStorage.getItem('examvault_token');
 const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
@@ -102,9 +105,28 @@ const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 });
 
     // --- GLOBAL CONFIGURATION ---
-    const API_BASE = 'https://examvault-live.onrender.com/api';
     const token = localStorage.getItem('examvault_token');
     const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
+
+    const toAbsoluteResourceUrl = (url) => {
+        const safeUrl = String(url || '').trim();
+        if (!safeUrl) return '';
+        if (/^https?:\/\//i.test(safeUrl)) return safeUrl;
+        if (/^\/\//.test(safeUrl)) return `${window.location.protocol}${safeUrl}`;
+        if (/^www\./i.test(safeUrl)) return `https://${safeUrl}`;
+        if (safeUrl.startsWith('/')) return `${API_ORIGIN}${safeUrl}`;
+
+        try {
+            return new URL(safeUrl, `${API_ORIGIN}/`).href;
+        } catch (err) {
+            return '';
+        }
+    };
+
+    const isPdfResourceUrl = (url) => {
+        const safeUrl = String(url || '').trim();
+        return /^\/uploads\//i.test(safeUrl) || /\.pdf(?:$|[?#])/i.test(safeUrl);
+    };
 
     if (token && currentUser) {
         document.querySelectorAll('[data-guest-only]').forEach((element) => {
@@ -609,7 +631,7 @@ if (verifyOtpBtn) {
 
     // --- 5. SOLUTIONS & INTERACTION API BAR ---
     const urlParams = new URLSearchParams(window.location.search);
-    const currentPaperId = urlParams.get('id') || '60d5ec49c1851543b44b8b9a';
+    const currentPaperId = urlParams.get('id') || '';
     const likeButton = document.getElementById('like-btn');
     const dislikeButton = document.getElementById('dislike-btn');
 
@@ -712,11 +734,10 @@ if (verifyOtpBtn) {
     };
 
     const openViewer = (url) => {
-        const safeUrl = (url || '').trim();
-        if (!safeUrl) return;
+        const fullUrl = toAbsoluteResourceUrl(url);
+        if (!fullUrl) return;
 
-        const fullUrl = safeUrl.startsWith('http') ? safeUrl : `${window.location.origin}${safeUrl}`;
-        window.open(fullUrl, '_blank');
+        window.open(fullUrl, '_blank', 'noopener');
     };
 
     const handleWatchVideo = () => {
@@ -757,8 +778,16 @@ if (verifyOtpBtn) {
     if (isSolutionPage) {
         (async () => {
             try {
+                if (!currentPaperId) {
+                    throw new Error('Paper ID was not found in the page URL.');
+                }
+
                 const res = await fetch(`${API_BASE}/papers/${currentPaperId}`);
                 const data = await res.json();
+
+                if (!res.ok || !data || !data.success || !data.data) {
+                    throw new Error(data?.message || 'Paper could not be loaded.');
+                }
 
                 if (data && data.success && data.data) {
                     const likes = Array.isArray(data.data.likes) ? data.data.likes : [];
@@ -773,6 +802,15 @@ if (verifyOtpBtn) {
                     // 1. Dynamic Title
                     const dynTitleEl = document.getElementById('dynamic-paper-title');
                     if (dynTitleEl) dynTitleEl.innerText = data.data.title;
+
+                    const breadcrumbExamType = document.getElementById('breadcrumb-exam-type');
+                    if (breadcrumbExamType) breadcrumbExamType.innerText = data.data.examType || 'Exam';
+
+                    const solutionYear = document.getElementById('solution-year');
+                    if (solutionYear) solutionYear.innerText = data.data.year || '----';
+
+                    const solutionViews = document.getElementById('solution-views');
+                    if (solutionViews) solutionViews.innerText = Number(data.data.views || 0).toLocaleString();
 
                     // 2. Paper Details
                     const detailsContainer = document.getElementById('dynamic-paper-details');
@@ -797,15 +835,17 @@ if (verifyOtpBtn) {
                         `;
                     }
 
-                    paperData.videoLink = data.data.solutionUrl || '';
+                    const storedSolutionUrl = data.data.solutionPdfUrl || data.data.solutionUrl || '';
+
+                    paperData.videoLink = data.data.videoUrl || (!isPdfResourceUrl(storedSolutionUrl) ? storedSolutionUrl : '');
                     paperData.pdfUrl = data.data.pdfUrl || '';
-                    paperData.solutionUrl = data.data.solutionUrl || '';
+                    paperData.solutionUrl = isPdfResourceUrl(storedSolutionUrl) ? storedSolutionUrl : '';
 
                     // 3. Solution Video Button
                     const solutionBtn = document.getElementById('view-solution-btn');
                     if (solutionBtn) {
-                        solutionBtn.style.display = 'inline-flex';
-                        solutionBtn.href = paperData.videoLink || '#';
+                        solutionBtn.style.display = paperData.videoLink ? 'inline-flex' : 'none';
+                        solutionBtn.href = toAbsoluteResourceUrl(paperData.videoLink) || '#';
                         solutionBtn.addEventListener('click', (event) => {
                             event.preventDefault();
                             handleWatchVideo();
@@ -824,6 +864,7 @@ if (verifyOtpBtn) {
                     // 5. Solution PDF View Button
                     const viewSolutionPdfBtn = document.getElementById('view-solution-pdf-btn');
                     if (viewSolutionPdfBtn) {
+                        viewSolutionPdfBtn.style.display = paperData.solutionUrl ? 'inline-flex' : 'none';
                         viewSolutionPdfBtn.addEventListener('click', (event) => {
                             event.preventDefault();
                             handleSolutionPdfView();
@@ -833,7 +874,7 @@ if (verifyOtpBtn) {
                     // 🚨 CORE FEATURE FIX: PDF VIEWER & DOWNLOAD BUTTON HYDRATION
                     const downloadBtn = document.getElementById('download-pdf-btn');
                     if (downloadBtn) {
-                        downloadBtn.href = paperData.pdfUrl || '#';
+                        downloadBtn.href = toAbsoluteResourceUrl(paperData.pdfUrl) || '#';
                         downloadBtn.addEventListener('click', (event) => {
                             if (!paperData.pdfUrl || paperData.pdfUrl.trim() === '') {
                                 event.preventDefault();
@@ -844,12 +885,17 @@ if (verifyOtpBtn) {
 
                     const iframe = document.getElementById('pdf-frame');
                     if (iframe) {
-                        iframe.src = paperData.pdfUrl || '';
+                        iframe.src = toAbsoluteResourceUrl(paperData.pdfUrl) || 'about:blank';
                     }
 
                 }
             } catch (err) {
                 console.error('Failed to load solution data:', err);
+                const dynTitleEl = document.getElementById('dynamic-paper-title');
+                if (dynTitleEl) dynTitleEl.innerText = err.message || 'Paper could not be loaded';
+                const iframe = document.getElementById('pdf-frame');
+                if (iframe) iframe.src = 'about:blank';
+                showToast(err.message || 'Paper could not be loaded.', 'error');
             }
         })();
     }
@@ -1248,6 +1294,9 @@ if (verifyOtpBtn) {
                     const safeTitle = escapeHTML(paper.title);
                     const safeExamType = escapeHTML(paper.examType);
                     const safeYear = escapeHTML(paper.year);
+                    const paperPdfUrl = toAbsoluteResourceUrl(paper.pdfUrl) || '#';
+                    const safePaperPdfUrl = escapeHTML(paperPdfUrl);
+                    const safeSolutionHref = `solution.html?id=${encodeURIComponent(paper._id)}`;
 
                     // Is code ko cardHTML loop ke andar update karo:
 const cardHTML = `
@@ -1265,15 +1314,15 @@ const cardHTML = `
         
         <div class="paper-actions" style="display: flex; gap: 0.6rem; align-items: center;">
             
-            <a href="https://examvault-live.onrender.com${paper.pdfUrl}" target="_blank" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
+            <a href="${safePaperPdfUrl}" target="_blank" rel="noopener" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
                 <i class="fa-solid fa-eye"></i> View Paper
             </a>
 
-            <a href="https://examvault-live.onrender.com${paper.pdfUrl}" download class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
+            <a href="${safePaperPdfUrl}" download class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
                 <i class="fa-solid fa-download"></i> Download
             </a>
             
-            <a href="solution.html?id=${paper._id}" class="btn-sm btn-filled" style="padding: 0.5rem 0.8rem; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+            <a href="${safeSolutionHref}" class="btn-sm btn-filled" style="padding: 0.5rem 0.8rem; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
                 View Solution
             </a>
         </div>
@@ -1893,11 +1942,11 @@ document.addEventListener('click', async (e) => {
             e.preventDefault();
             const iframe = document.getElementById('pdf-frame');
             
-            if (iframe && iframe.src && iframe.src !== window.location.href) {
+            if (iframe && iframe.src && iframe.src !== window.location.href && iframe.src !== 'about:blank') {
                 // Iframe ke PDF URL ko nayi tab me khol do
                 window.open(iframe.src, '_blank');
             } else {
-                alert("Bhai, PDF abhi load ho rahi hai ya server par available nahi hai!");
+                alert('PDF is still loading or is not available on the server yet.');
             }
         }
         // Agar currentHref sahi URL hai, toh normal <a target="_blank"> apna kaam karega
@@ -1911,7 +1960,7 @@ document.addEventListener('click', async (e) => {
         if (!token) return alert("Bhai, pehle login kar lo Like karne ke liye!");
 
         try {
-            const res = await fetch(`/api/papers/${paperId}/like`, {
+            const res = await fetch(`${API_BASE}/papers/${paperId}/like`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -1948,7 +1997,7 @@ document.addEventListener('click', async (e) => {
         if (!token) return alert("Pehle login kar lo Dislike karne ke liye!");
 
         try {
-            const res = await fetch(`/api/papers/${paperId}/dislike`, {
+            const res = await fetch(`${API_BASE}/papers/${paperId}/dislike`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',

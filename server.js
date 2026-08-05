@@ -12,6 +12,10 @@ if (!process.env.JWT_SECRET) {
 // 1. Initialize Express App BEFORE mounting anything
 const app = express();
 const PORT = process.env.PORT || 5001;
+const publicDir = path.join(__dirname, 'public');
+const publicUploadsDir = path.join(publicDir, 'uploads');
+const legacyUploadsDir = path.join(__dirname, 'uploads');
+const uploadsFallbackOrigin = (process.env.UPLOADS_FALLBACK_ORIGIN || 'https://examvault-live.onrender.com').replace(/\/+$/, '');
 
 // 2. Import Database connection
 const connectDB = require('./server/config/db.js');
@@ -23,8 +27,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 4. Serve Static Assets
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(publicDir));
+app.use('/uploads', express.static(publicUploadsDir));
+app.use('/uploads', express.static(legacyUploadsDir));
+app.use('/uploads', (req, res) => {
+    try {
+        const fallbackHost = new URL(uploadsFallbackOrigin).host;
+        const requestHost = req.get('host');
+        if (requestHost && requestHost !== fallbackHost) {
+            return res.redirect(302, `${uploadsFallbackOrigin}${req.originalUrl}`);
+        }
+    } catch (error) {
+        console.error(`Invalid UPLOADS_FALLBACK_ORIGIN: ${uploadsFallbackOrigin}`);
+    }
+
+    res.status(404).type('text/plain').send('Uploaded file not found');
+});
 
 // 5. REQUIRE Route Handlers (Ensuring no name conflicts)
 const authRoutes = require('./server/routes/authRoutes');

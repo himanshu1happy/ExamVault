@@ -110,6 +110,7 @@ const likePaper = async (req, res) => {
 const uploadPaper = async (req, res) => {
     try {
         const { title, examType, year, subject, difficulty } = req.body;
+        const videoUrl = String(req.body.videoUrl || req.body.solutionUrl || '').trim();
         
         // 1. Check Question Paper
         if (!req.files || !req.files['paperFile']) {
@@ -124,7 +125,7 @@ const uploadPaper = async (req, res) => {
         }
 
         const newPaper = await Paper.create({
-            title, examType, year: Number(year), subject, difficulty, pdfUrl, solutionUrl
+            title, examType, year: Number(year), subject, difficulty, pdfUrl, solutionUrl, videoUrl
         });
 
         res.status(201).json({ success: true, message: 'Paper & Solution uploaded!', data: newPaper });
