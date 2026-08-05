@@ -4,7 +4,7 @@ const upload = require('../middleware/upload');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // FIX: Removed getPaperComments from imports
-const { getPapers, getPaperById, getSaveStatus, toggleSavedPaper, likePaper, dislikePaper, uploadPaper, addComment, getComments, replyToComment, deleteComment } = require('../controllers/paperController');
+const { getPapers, getPaperById, getSaveStatus, toggleSavedPaper, likePaper, dislikePaper, uploadPaper, deletePaper, addComment, getComments, replyToComment, deleteComment } = require('../controllers/paperController');
 
 // Standard Routes
 router.get('/', getPapers);
@@ -13,6 +13,7 @@ router.post('/:id/like', protect, likePaper);
 router.post('/:id/dislike', protect, dislikePaper);
 router.get('/:id/save', protect, getSaveStatus);
 router.post('/:id/save', protect, toggleSavedPaper);
+router.delete('/:id', protect, admin, deletePaper);
 
 // --- COMMENTS ROUTES ---
 // GET: Anyone can view comments

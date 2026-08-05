@@ -1,5 +1,42 @@
 const Paper = require('../models/Paper');
 const User = require('../models/User');
+const fs = require('fs/promises');
+const path = require('path');
+
+const uploadRoots = [
+    path.resolve(__dirname, '..', '..', 'public', 'uploads'),
+    path.resolve(__dirname, '..', '..', 'uploads')
+];
+
+const removeLocalUploadIfUnused = async (url) => {
+    const cleanUrl = String(url || '').split('?')[0].replace(/\\/g, '/');
+    if (!cleanUrl.startsWith('/uploads/')) return;
+
+    const filename = path.basename(cleanUrl);
+    if (!filename) return;
+
+    const stillReferenced = await Paper.exists({
+        $or: [
+            { pdfUrl: cleanUrl },
+            { solutionUrl: cleanUrl }
+        ]
+    });
+
+    if (stillReferenced) return;
+
+    await Promise.all(uploadRoots.map(async (root) => {
+        const filePath = path.resolve(root, filename);
+        if (!filePath.startsWith(root + path.sep)) return;
+
+        try {
+            await fs.unlink(filePath);
+        } catch (error) {
+            if (error.code !== 'ENOENT') {
+                console.error(`Could not delete upload file ${filePath}:`, error.message);
+            }
+        }
+    }));
+};
 
 // @desc    Get all papers with optional filters (Exam Type, Year)
 // @route   GET /api/papers
@@ -133,6 +170,33 @@ const uploadPaper = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// @desc    Delete a paper and its local PDFs (Admin Only)
+// @route   DELETE /api/papers/:id
+// @access  Admin
+const deletePaper = async (req, res) => {
+    try {
+        const paper = await Paper.findById(req.params.id);
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found' });
+        }
+
+        const uploadUrls = [...new Set([paper.pdfUrl, paper.solutionUrl].filter(Boolean))];
+
+        await Paper.deleteOne({ _id: paper._id });
+        await User.updateMany(
+            { savedPapers: paper._id },
+            { $pull: { savedPapers: paper._id } }
+        );
+
+        await Promise.all(uploadUrls.map(removeLocalUploadIfUnused));
+
+        res.status(200).json({ success: true, message: 'Paper removed successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // @desc    Add a comment to a paper
 // @route   POST /api/papers/:id/comment
 const addComment = async (req, res) => {
@@ -318,4 +382,4 @@ const getComments = async (req, res) => {
 };
 
 
-module.exports = { getPapers, getPaperById, getComments, getSaveStatus, toggleSavedPaper, likePaper, dislikePaper, uploadPaper, addComment, replyToComment, deleteComment };
+module.exports = { getPapers, getPaperById, getComments, getSaveStatus, toggleSavedPaper, likePaper, dislikePaper, uploadPaper, deletePaper, addComment, replyToComment, deleteComment };

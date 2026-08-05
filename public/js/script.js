@@ -1296,7 +1296,12 @@ if (verifyOtpBtn) {
                     const safeYear = escapeHTML(paper.year);
                     const paperPdfUrl = toAbsoluteResourceUrl(paper.pdfUrl) || '#';
                     const safePaperPdfUrl = escapeHTML(paperPdfUrl);
+                    const safePaperId = escapeHTML(paper._id);
                     const safeSolutionHref = `solution.html?id=${encodeURIComponent(paper._id)}`;
+                    const adminDeleteButton = isAdminUser ? `
+            <button type="button" class="btn-sm btn-outline admin-delete-paper-btn" data-delete-paper-id="${safePaperId}" data-delete-paper-title="${safeTitle}" style="padding: 0.5rem 0.8rem; border: 1px solid #ff4a4a; background: transparent; border-radius: 6px; color: #ff4a4a; font-size: 0.85rem; cursor: pointer;">
+                <i class="fa-solid fa-trash"></i> Delete
+            </button>` : '';
 
                     // Is code ko cardHTML loop ke andar update karo:
 const cardHTML = `
@@ -1325,6 +1330,8 @@ const cardHTML = `
             <a href="${safeSolutionHref}" class="btn-sm btn-filled" style="padding: 0.5rem 0.8rem; background: var(--primary); color: white; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
                 View Solution
             </a>
+
+            ${adminDeleteButton}
         </div>
     </div>
 `;
@@ -1341,6 +1348,56 @@ const cardHTML = `
             console.error('Error fetching data arrays:', err);
             papersGrid.innerHTML = '<div class="error-msg" style="width:100%; text-align:center; color:#ff4a4a;">Failed to connect with remote repository cluster.</div>';
         }
+    }
+
+    if (papersGrid) {
+        papersGrid.addEventListener('click', async (event) => {
+            const deleteButton = event.target.closest('[data-delete-paper-id]');
+            if (!deleteButton) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!isAdminUser) {
+                alert('Only admins can remove papers.');
+                return;
+            }
+
+            if (!token) {
+                alert('Please sign in as admin to remove papers.');
+                return;
+            }
+
+            const paperId = deleteButton.dataset.deletePaperId;
+            const paperTitle = deleteButton.dataset.deletePaperTitle || 'this paper';
+
+            if (!paperId) return;
+            if (!window.confirm(`Remove "${paperTitle}" from ExamVault? This cannot be undone.`)) return;
+
+            const originalHTML = deleteButton.innerHTML;
+            deleteButton.disabled = true;
+            deleteButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Removing...';
+
+            try {
+                const res = await fetch(`${API_BASE}/papers/${encodeURIComponent(paperId)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Paper could not be removed');
+                }
+
+                showToast(data.message || 'Paper removed successfully', 'success');
+                await fetchAndRenderPapers(selectedExam, selectedYear, selectedSearch);
+            } catch (err) {
+                console.error('Delete paper error:', err);
+                alert(err.message || 'Paper could not be removed.');
+                deleteButton.innerHTML = originalHTML;
+                deleteButton.disabled = false;
+            }
+        });
     }
 
     // --- 8. BACK TO TOP CONFIGURATION ---
