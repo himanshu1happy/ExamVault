@@ -762,17 +762,6 @@ if (verifyOtpBtn) {
         openViewer(paperUrl);
     };
 
-    const handleSolutionPdfView = () => {
-        const solutionUrl = (paperData.solutionUrl || '').trim();
-
-        if (!solutionUrl) {
-            showToast('Solution PDF not available yet!', 'error');
-            return;
-        }
-
-        openViewer(solutionUrl);
-    };
-
     const isSolutionPage = window.location.pathname.includes('solution.html');
 
     if (isSolutionPage) {
@@ -861,31 +850,40 @@ if (verifyOtpBtn) {
                         });
                     }
 
-                    // 5. Solution PDF View Button
-                    const viewSolutionPdfBtn = document.getElementById('view-solution-pdf-btn');
-                    if (viewSolutionPdfBtn) {
-                        viewSolutionPdfBtn.style.display = paperData.solutionUrl ? 'inline-flex' : 'none';
-                        viewSolutionPdfBtn.addEventListener('click', (event) => {
-                            event.preventDefault();
-                            handleSolutionPdfView();
-                        });
-                    }
-
                     // 🚨 CORE FEATURE FIX: PDF VIEWER & DOWNLOAD BUTTON HYDRATION
+                    const solutionPdfUrl = toAbsoluteResourceUrl(paperData.solutionUrl);
                     const downloadBtn = document.getElementById('download-pdf-btn');
                     if (downloadBtn) {
-                        downloadBtn.href = toAbsoluteResourceUrl(paperData.pdfUrl) || '#';
+                        downloadBtn.href = solutionPdfUrl || '#';
+                        downloadBtn.setAttribute('download', '');
+                        downloadBtn.style.display = solutionPdfUrl ? 'inline-flex' : 'none';
                         downloadBtn.addEventListener('click', (event) => {
-                            if (!paperData.pdfUrl || paperData.pdfUrl.trim() === '') {
+                            if (!solutionPdfUrl) {
                                 event.preventDefault();
-                                showToast('Question paper is not available yet!', 'error');
+                                showToast('Solution PDF is not available yet!', 'error');
                             }
                         });
                     }
 
                     const iframe = document.getElementById('pdf-frame');
                     if (iframe) {
-                        iframe.src = toAbsoluteResourceUrl(paperData.pdfUrl) || 'about:blank';
+                        if (solutionPdfUrl) {
+                            iframe.removeAttribute('srcdoc');
+                            iframe.src = solutionPdfUrl;
+                        } else {
+                            iframe.src = 'about:blank';
+                            iframe.srcdoc = `
+                                <html>
+                                    <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1e1e24;color:#f5f6ff;font-family:Arial,sans-serif;text-align:center;">
+                                        <div>
+                                            <div style="font-size:42px;margin-bottom:16px;">PDF</div>
+                                            <div style="font-size:20px;font-weight:700;margin-bottom:8px;">Solution PDF not available yet</div>
+                                            <div style="font-size:14px;color:#b8b8d6;">Upload a solution PDF from the admin panel to show it here.</div>
+                                        </div>
+                                    </body>
+                                </html>
+                            `;
+                        }
                     }
 
                 }
