@@ -2,11 +2,37 @@ const Paper = require('../models/Paper');
 const User = require('../models/User');
 const fs = require('fs/promises');
 const path = require('path');
+const cloudinary = require('../config/cloudinary');
 
 const uploadRoots = [
     path.resolve(__dirname, '..', '..', 'public', 'uploads'),
     path.resolve(__dirname, '..', '..', 'uploads')
 ];
+
+const getUploadedFile = (files, fieldName) => {
+    const fieldFiles = files && files[fieldName];
+    return Array.isArray(fieldFiles) ? fieldFiles[0] : undefined;
+};
+
+const getUploadedFileUrl = (file) => String(file?.path || file?.secure_url || file?.url || '').trim();
+const getUploadedPublicId = (file) => String(file?.filename || file?.public_id || '').trim();
+
+const getCloudinaryPublicIdFromUrl = (url) => {
+    try {
+        const pathname = new URL(String(url || '')).pathname;
+        const uploadMarker = '/raw/upload/';
+        const uploadIndex = pathname.indexOf(uploadMarker);
+        if (uploadIndex === -1) return '';
+
+        return decodeURIComponent(
+            pathname
+                .slice(uploadIndex + uploadMarker.length)
+                .replace(/^v\d+\//, '')
+        );
+    } catch (error) {
+        return '';
+    }
+};
 
 const removeLocalUploadIfUnused = async (url) => {
     const cleanUrl = String(url || '').split('?')[0].replace(/\\/g, '/');
@@ -36,6 +62,38 @@ const removeLocalUploadIfUnused = async (url) => {
             }
         }
     }));
+};
+
+const removeCloudinaryUploadIfUnused = async ({ publicId, url }) => {
+    const cleanPublicId = String(publicId || '').trim();
+    if (!cleanPublicId) return;
+
+    const cleanUrl = String(url || '').trim();
+    const stillReferencedQuery = {
+        $or: [
+            { pdfPublicId: cleanPublicId },
+            { solutionPublicId: cleanPublicId }
+        ]
+    };
+
+    if (cleanUrl) {
+        stillReferencedQuery.$or.push(
+            { pdfUrl: cleanUrl },
+            { solutionUrl: cleanUrl }
+        );
+    }
+
+    const stillReferenced = await Paper.exists(stillReferencedQuery);
+    if (stillReferenced) return;
+
+    try {
+        await cloudinary.uploader.destroy(cleanPublicId, {
+            resource_type: 'raw',
+            invalidate: true
+        });
+    } catch (error) {
+        console.error(`Could not delete Cloudinary upload ${cleanPublicId}:`, error.message);
+    }
 };
 
 // @desc    Get all papers with optional filters (Exam Type, Year)
@@ -148,21 +206,34 @@ const uploadPaper = async (req, res) => {
     try {
         const { title, examType, year, subject, difficulty } = req.body;
         const videoUrl = String(req.body.videoUrl || req.body.solutionUrl || '').trim();
+        const paperFile = getUploadedFile(req.files, 'paperFile');
+        const solutionFile = getUploadedFile(req.files, 'solutionFile');
         
-        // 1. Check Question Paper
-        if (!req.files || !req.files['paperFile']) {
+        if (!paperFile) {
             return res.status(400).json({ success: false, message: 'Please attach Question Paper PDF.' });
         }
-        const pdfUrl = '/uploads/' + req.files['paperFile'][0].filename;
 
-        // 2. Check Solution File (Optional)
-        let solutionUrl = '';
-        if (req.files['solutionFile']) {
-            solutionUrl = '/uploads/' + req.files['solutionFile'][0].filename;
+        const pdfUrl = getUploadedFileUrl(paperFile);
+        const pdfPublicId = getUploadedPublicId(paperFile);
+
+        if (!pdfUrl) {
+            return res.status(500).json({ success: false, message: 'Question paper upload did not return a file URL.' });
         }
 
+        const solutionUrl = solutionFile ? getUploadedFileUrl(solutionFile) : '';
+        const solutionPublicId = solutionFile ? getUploadedPublicId(solutionFile) : '';
+
         const newPaper = await Paper.create({
-            title, examType, year: Number(year), subject, difficulty, pdfUrl, solutionUrl, videoUrl
+            title,
+            examType,
+            year: Number(year),
+            subject,
+            difficulty,
+            pdfUrl,
+            pdfPublicId,
+            solutionUrl,
+            solutionPublicId,
+            videoUrl
         });
 
         res.status(201).json({ success: true, message: 'Paper & Solution uploaded!', data: newPaper });
@@ -182,6 +253,16 @@ const deletePaper = async (req, res) => {
         }
 
         const uploadUrls = [...new Set([paper.pdfUrl, paper.solutionUrl].filter(Boolean))];
+        const cloudinaryUploads = [
+            {
+                publicId: paper.pdfPublicId || getCloudinaryPublicIdFromUrl(paper.pdfUrl),
+                url: paper.pdfUrl
+            },
+            {
+                publicId: paper.solutionPublicId || getCloudinaryPublicIdFromUrl(paper.solutionUrl),
+                url: paper.solutionUrl
+            }
+        ].filter((upload) => upload.publicId);
 
         await Paper.deleteOne({ _id: paper._id });
         await User.updateMany(
@@ -189,7 +270,10 @@ const deletePaper = async (req, res) => {
             { $pull: { savedPapers: paper._id } }
         );
 
-        await Promise.all(uploadUrls.map(removeLocalUploadIfUnused));
+        await Promise.all([
+            ...uploadUrls.map(removeLocalUploadIfUnused),
+            ...cloudinaryUploads.map(removeCloudinaryUploadIfUnused)
+        ]);
 
         res.status(200).json({ success: true, message: 'Paper removed successfully' });
     } catch (error) {

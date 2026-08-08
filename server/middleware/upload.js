@@ -1,50 +1,37 @@
-const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
+const cloudinary = require('../config/cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-const uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads');
-
-if (!fs.existsSync(uploadDir)) {
-    console.log('📂 Creating public/uploads directory...');
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 1. Storage Setup
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        // Unique file name to avoid overwriting
-        cb(null, Date.now() + path.extname(file.originalname)); 
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'ExamVault_Vault',
+        resource_type: 'raw',
+        format: async () => 'pdf',
+        allowed_formats: ['pdf'],
+        use_filename: true,
+        unique_filename: true
     }
 });
 
-// 2. The Security Guard (File Filter)
 const fileFilter = (req, file, cb) => {
-    // Sirf in extensions ko andar aane ki permission hai
-    const allowedFileTypes = /pdf|jpg|jpeg|png/;
-    
-    // Check extension name (.pdf, .png, etc.)
-    const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
-    
-    // Check MIME type (asli file type, taaki koi .exe ka naam badal kar .pdf na kar de)
-    const mimetype = allowedFileTypes.test(file.mimetype);
+    const extname = path.extname(file.originalname).toLowerCase() === '.pdf';
+    const mimetype = ['application/pdf', 'application/x-pdf'].includes(file.mimetype);
 
     if (extname && mimetype) {
-        return cb(null, true); // File safe hai, andar aane do
-    } else {
-        return cb(new Error('Security Alert: Only PDF, JPG, and PNG files are allowed!'), false); // Reject!
+        return cb(null, true);
     }
+
+    return cb(new Error('Security Alert: Only PDF files are allowed!'), false);
 };
 
-// 3. Combine everything and add a Size Limit (DoS Protection)
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
-    limits: { 
-        fileSize: 20 * 1024 * 1024 // Hacker 50GB ki file upload karke server crash na kare (Max 10MB limit)
-    } 
+    limits: {
+        fileSize: 20 * 1024 * 1024
+    }
 });
 
 module.exports = upload;
