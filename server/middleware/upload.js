@@ -7,12 +7,7 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'ExamVault_Vault',
-        resource_type: 'raw',
-        format: async () => 'pdf',
-        allowed_formats: ['pdf'],
-        use_filename: true,
-        unique_filename: true
-    }
+     
 });
 
 const fileFilter = (req, file, cb) => {

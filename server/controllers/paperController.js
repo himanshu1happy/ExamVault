@@ -211,19 +211,31 @@ const likePaper = async (req, res) => {
 // @route   POST /api/papers/upload
 const uploadPaper = async (req, res) => {
     try {
+        console.log('📤 Upload attempt started');
+        console.log('req.files:', req.files ? Object.keys(req.files) : 'NO FILES');
+        console.log('req.body:', req.body);
+        
         const { title, examType, year, subject, difficulty } = req.body;
         const videoUrl = String(req.body.videoUrl || req.body.solutionUrl || '').trim();
         const paperFile = getUploadedFile(req.files, 'paperFile');
         const solutionFile = getUploadedFile(req.files, 'solutionFile');
         
+        console.log('paperFile:', paperFile ? { filename: paperFile.filename, size: paperFile.size } : 'MISSING');
+        console.log('solutionFile:', solutionFile ? { filename: solutionFile.filename, size: solutionFile.size } : 'NOT PROVIDED');
+        
         if (!paperFile) {
+            console.error('❌ No paperFile provided');
             return res.status(400).json({ success: false, message: 'Please attach Question Paper PDF.' });
         }
 
         const pdfUrl = getUploadedFileUrl(paperFile);
         const pdfPublicId = getUploadedPublicId(paperFile);
 
+        console.log('pdfUrl:', pdfUrl);
+        console.log('pdfPublicId:', pdfPublicId);
+
         if (!pdfUrl) {
+            console.error('❌ No URL returned from Cloudinary');
             return res.status(500).json({ success: false, message: 'Question paper upload did not return a file URL.' });
         }
 
@@ -243,8 +255,11 @@ const uploadPaper = async (req, res) => {
             videoUrl
         });
 
+        console.log('✅ Paper uploaded successfully:', newPaper._id);
         res.status(201).json({ success: true, message: 'Paper & Solution uploaded!', data: newPaper });
     } catch (error) {
+        console.error('❌ Upload error:', error.message);
+        console.error('Error stack:', error.stack);
         res.status(500).json({ success: false, message: error.message });
     }
 };

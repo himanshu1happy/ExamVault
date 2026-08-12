@@ -13,8 +13,12 @@ const uploadPaperFiles = upload.fields([
 
 const handlePaperUpload = (req, res, next) => {
     uploadPaperFiles(req, res, (error) => {
-        if (!error) return next();
+        if (!error) {
+            console.log('✅ Multer upload completed successfully');
+            return next();
+        }
 
+        console.error('❌ Multer upload error:', error.code, error.message);
         const statusCode = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
         return res.status(statusCode).json({
             success: false,
