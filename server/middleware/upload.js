@@ -7,12 +7,11 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'ExamVault_Vault',
-        resource_type: 'raw',
-        format: async () => 'pdf',
-        allowed_formats: ['pdf'],
-        use_filename: true,
-        unique_filename: true
-    }
+        resource_type: 'image',     // 👈 CHANGE 1: 'raw' ko hata kar 'image' kar do
+        format: 'pdf',              // 👈 CHANGE 2: Isko strictly 'pdf' par set karo
+        flags: 'attachment:false',  // 👈 CHANGE 3: Yeh browser ko bolega ki "Download mat karo, website mein dikhao"
+  
+    },
 });
 
 const fileFilter = (req, file, cb) => {
