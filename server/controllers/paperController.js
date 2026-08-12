@@ -14,7 +14,14 @@ const getUploadedFile = (files, fieldName) => {
     return Array.isArray(fieldFiles) ? fieldFiles[0] : undefined;
 };
 
-const getUploadedFileUrl = (file) => String(file?.path || file?.secure_url || file?.url || '').trim();
+const getUploadedFileUrl = (file) => {
+    let url = String(file?.path || file?.secure_url || file?.url || '').trim();
+    // Add inline display flag for Cloudinary raw resources to show in iframe instead of download
+    if (url.includes('cloudinary.com') && url.includes('/raw/upload/')) {
+        url = url.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
+    }
+    return url;
+};
 const getUploadedPublicId = (file) => String(file?.filename || file?.public_id || '').trim();
 
 const getCloudinaryPublicIdFromUrl = (url) => {

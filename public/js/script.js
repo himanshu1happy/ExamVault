@@ -111,16 +111,30 @@ const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
     const toAbsoluteResourceUrl = (url) => {
         const safeUrl = String(url || '').trim();
         if (!safeUrl) return '';
-        if (/^https?:\/\//i.test(safeUrl)) return safeUrl;
-        if (/^\/\//.test(safeUrl)) return `${window.location.protocol}${safeUrl}`;
-        if (/^www\./i.test(safeUrl)) return `https://${safeUrl}`;
-        if (safeUrl.startsWith('/')) return `${API_ORIGIN}${safeUrl}`;
-
-        try {
-            return new URL(safeUrl, `${API_ORIGIN}/`).href;
-        } catch (err) {
-            return '';
+        
+        let absoluteUrl = safeUrl;
+        if (!/^https?:\/\//i.test(safeUrl)) {
+            if (/^\/\//.test(safeUrl)) {
+                absoluteUrl = `${window.location.protocol}${safeUrl}`;
+            } else if (/^www\./i.test(safeUrl)) {
+                absoluteUrl = `https://${safeUrl}`;
+            } else if (safeUrl.startsWith('/')) {
+                absoluteUrl = `${API_ORIGIN}${safeUrl}`;
+            } else {
+                try {
+                    absoluteUrl = new URL(safeUrl, `${API_ORIGIN}/`).href;
+                } catch (err) {
+                    return '';
+                }
+            }
         }
+        
+        // Add inline display flag for Cloudinary raw resources to show in iframe instead of download
+        if (absoluteUrl.includes('cloudinary.com') && absoluteUrl.includes('/raw/upload/') && !absoluteUrl.includes('fl_attachment')) {
+            absoluteUrl = absoluteUrl.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
+        }
+        
+        return absoluteUrl;
     };
 
     const isPdfResourceUrl = (url) => {
