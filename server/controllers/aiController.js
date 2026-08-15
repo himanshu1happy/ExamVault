@@ -1,8 +1,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini AI (using latest version for automatic updates)
+// Initialize Gemini AI with the stable model to avoid 404 issues
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 // Extract text from Gemini response
 const extractTextFromResponse = (response) => {
