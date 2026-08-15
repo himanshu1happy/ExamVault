@@ -7,7 +7,8 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
         folder: 'ExamVault_Vault',
-     
+        resource_type: 'auto'
+    }
 });
 
 const fileFilter = (req, file, cb) => {
