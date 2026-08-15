@@ -1,8 +1,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini AI
+// Initialize Gemini AI (using latest version for automatic updates)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
 // Extract text from Gemini response
 const extractTextFromResponse = (response) => {
