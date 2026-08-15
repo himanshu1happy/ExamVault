@@ -1,8 +1,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Google ka sabse naya aur free model use karenge!
+// Hum Lite version use karenge jo high traffic mein bhi crash nahi hota!
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-3.7-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
 
 // Extract text from Gemini response
 const extractTextFromResponse = (response) => {
