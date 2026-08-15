@@ -1,18 +1,13 @@
-const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
-
+// const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 const extractTextFromResponse = (payload) => {
-    if (typeof payload.output_text === 'string' && payload.output_text.trim()) {
-        return payload.output_text.trim();
+    if (payload.choices && Array.isArray(payload.choices) && payload.choices.length > 0) {
+        const message = payload.choices[0].message;
+        if (message && typeof message.content === 'string') {
+            return message.content.trim();
+        }
     }
-
-    if (!Array.isArray(payload.output)) return '';
-
-    return payload.output
-        .flatMap((item) => Array.isArray(item.content) ? item.content : [])
-        .map((content) => content.text || '')
-        .filter(Boolean)
-        .join('\n')
-        .trim();
+    return '';
 };
 
 const buildAssistantInput = ({ message, pageContext, history, user }) => {
@@ -52,31 +47,34 @@ const askStudyAssistant = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Please keep your question under 1500 characters.' });
         }
 
-        if (!process.env.OPENAI_API_KEY) {
+        if (!process.env.DEEPSEEK_API_KEY) {
             return res.status(503).json({
                 success: false,
                 setupRequired: true,
-                message: 'AI is not configured yet. Add OPENAI_API_KEY to your .env file and restart the server.'
+                message: 'AI is not configured yet. Add DEEPSEEK_API_KEY to your .env file and restart the server.'
             });
         }
 
-        const response = await fetch(OPENAI_RESPONSES_URL, {
+        const response = await fetch(DEEPSEEK_API_URL, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: process.env.OPENAI_MODEL || 'gpt-5.6-luna',
-                instructions: [
-                    'You are ExamVault AI, a calm and practical study assistant for competitive exam students.',
-                    'Help with doubts, revision plans, paper strategy, topic summaries, and next-step practice.',
-                    'Keep answers concise, exam-focused, and encouraging.',
-                    'Do not claim to read PDFs directly. If the student asks about a PDF, ask them to paste the question text.',
-                    'For math or science doubts, show steps clearly. For plans, use short bullet points.'
-                ].join(' '),
-                input: buildAssistantInput({ message: cleanMessage, pageContext, history, user: req.user }),
-                max_output_tokens: 700
+                model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are ExamVault AI, a calm and practical study assistant for competitive exam students. Help with doubts, revision plans, paper strategy, topic summaries, and next-step practice. Keep answers concise, exam-focused, and encouraging. Do not claim to read PDFs directly. If the student asks about a PDF, ask them to paste the question text. For math or science doubts, show steps clearly. For plans, use short bullet points.'
+                    },
+                    {
+                        role: 'user',
+                        content: buildAssistantInput({ message: cleanMessage, pageContext, history, user: req.user })
+                    }
+                ],
+                max_tokens: 700,
+                temperature: 0.7
             })
         });
 

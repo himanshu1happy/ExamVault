@@ -3,6 +3,11 @@
 (function () {
     'use strict';
 
+    const PRODUCTION_API_ORIGIN = 'https://examvault-live.onrender.com';
+    const API_ORIGIN = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+        ? window.location.origin
+        : PRODUCTION_API_ORIGIN;
+
     const authPages = new Set([
         'login.html',
         'signup.html',
@@ -128,7 +133,7 @@
             const thinkingMessage = addMessage('assistant', 'Thinking...');
 
             try {
-                const response = await fetch('https://examvault-live.onrender.com/api/ai/study-assistant', {
+                const response = await fetch(`${API_ORIGIN}/api/ai/study-assistant`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
