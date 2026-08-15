@@ -1,15 +1,18 @@
-// const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-const extractTextFromResponse = (payload) => {
-    if (payload.choices && Array.isArray(payload.choices) && payload.choices.length > 0) {
-        const message = payload.choices[0].message;
-        if (message && typeof message.content === 'string') {
-            return message.content.trim();
-        }
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+// Extract text from Gemini response
+const extractTextFromResponse = (response) => {
+    if (response && response.text && typeof response.text === 'function') {
+        return response.text().trim();
     }
     return '';
 };
 
+// Build context-aware prompt
 const buildAssistantInput = ({ message, pageContext, history, user }) => {
     const recentHistory = Array.isArray(history)
         ? history
@@ -34,11 +37,13 @@ const buildAssistantInput = ({ message, pageContext, history, user }) => {
     ].filter(Boolean).join('\n\n');
 };
 
+// Main AI assistant handler
 const askStudyAssistant = async (req, res) => {
     try {
         const { message, pageContext, history } = req.body;
         const cleanMessage = typeof message === 'string' ? message.trim() : '';
 
+        // Validate input
         if (!cleanMessage) {
             return res.status(400).json({ success: false, message: 'Please ask the AI a question first.' });
         }
@@ -47,45 +52,21 @@ const askStudyAssistant = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Please keep your question under 1500 characters.' });
         }
 
-        if (!process.env.DEEPSEEK_API_KEY) {
+        if (!process.env.GEMINI_API_KEY) {
             return res.status(503).json({
                 success: false,
                 setupRequired: true,
-                message: 'AI is not configured yet. Add DEEPSEEK_API_KEY to your .env file and restart the server.'
+                message: 'AI is not configured yet. Add GEMINI_API_KEY to your .env file and restart the server.'
             });
         }
 
-        const response = await fetch(DEEPSEEK_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are ExamVault AI, a calm and practical study assistant for competitive exam students. Help with doubts, revision plans, paper strategy, topic summaries, and next-step practice. Keep answers concise, exam-focused, and encouraging. Do not claim to read PDFs directly. If the student asks about a PDF, ask them to paste the question text. For math or science doubts, show steps clearly. For plans, use short bullet points.'
-                    },
-                    {
-                        role: 'user',
-                        content: buildAssistantInput({ message: cleanMessage, pageContext, history, user: req.user })
-                    }
-                ],
-                max_tokens: 700,
-                temperature: 0.7
-            })
-        });
+        // Build prompt with system instruction
+        const systemPrompt = 'You are ExamVault AI, a calm and practical study assistant for competitive exam students. Help with doubts, revision plans, paper strategy, topic summaries, and next-step practice. Keep answers concise, exam-focused, and encouraging. Do not claim to read PDFs directly. If the student asks about a PDF, ask them to paste the question text. For math or science doubts, show steps clearly. For plans, use short bullet points.';
+        const fullPrompt = `${systemPrompt}\n\n${buildAssistantInput({ message: cleanMessage, pageContext, history, user: req.user })}`;
 
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-            const apiMessage = payload.error?.message || 'AI request failed. Please try again.';
-            return res.status(response.status).json({ success: false, message: apiMessage });
-        }
-
-        const answer = extractTextFromResponse(payload);
+        // Call Gemini API
+        const result = await model.generateContent(fullPrompt);
+        const answer = extractTextFromResponse(result.response);
 
         if (!answer) {
             return res.status(502).json({ success: false, message: 'AI returned an empty answer. Please try again.' });
@@ -94,6 +75,11 @@ const askStudyAssistant = async (req, res) => {
         res.status(200).json({ success: true, answer });
     } catch (error) {
         console.error('AI assistant error:', error.message);
+        
+        if (error.message && error.message.includes('429')) {
+            return res.status(429).json({ success: false, message: 'Rate limit exceeded. Try again in a moment. (Limit: 15 req/min)' });
+        }
+        
         res.status(500).json({ success: false, message: 'AI assistant is temporarily unavailable.' });
     }
 };
