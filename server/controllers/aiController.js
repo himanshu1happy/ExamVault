@@ -1,8 +1,8 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini AI with the stable model to avoid 404 issues
+// Google ka sabse naya aur free model use karenge!
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+const model = genAI.getGenerativeModel({ model: 'gemini-3.7-flash' });
 
 // Extract text from Gemini response
 const extractTextFromResponse = (response) => {
