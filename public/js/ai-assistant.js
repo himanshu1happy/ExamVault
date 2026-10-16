@@ -131,7 +131,8 @@
             input.disabled = true;
             submitButton.disabled = true;
             const thinkingMessage = addMessage('assistant', 'Thinking...');
-
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentPaperId = urlParams.get('id') || null;
             try {
                 const response = await fetch(`${API_ORIGIN}/api/ai/study-assistant`, {
                     method: 'POST',
@@ -142,7 +143,8 @@
                     body: JSON.stringify({
                         message: question,
                         pageContext: getPageContext(),
-                        history: conversation.slice(-6)
+                        history: conversation.slice(-6),
+                        paperId: currentPaperId
                     })
                 });
                 const data = await response.json();
@@ -161,7 +163,7 @@
                 input.focus();
             }
         }
-
+        
         launcher.addEventListener('click', () => {
             if (panel.hidden) openAssistant();
             else closeAssistant();

@@ -8,7 +8,8 @@ const uploadRoots = [
     path.resolve(__dirname, '..', '..', 'public', 'uploads'),
     path.resolve(__dirname, '..', '..', 'uploads')
 ];
-
+const pdfParse = require('pdf-parse');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const getUploadedFile = (files, fieldName) => {
     const fieldFiles = files && files[fieldName];
     return Array.isArray(fieldFiles) ? fieldFiles[0] : undefined;
@@ -241,6 +242,18 @@ const uploadPaper = async (req, res) => {
 
         const solutionUrl = solutionFile ? getUploadedFileUrl(solutionFile) : '';
         const solutionPublicId = solutionFile ? getUploadedPublicId(solutionFile) : '';
+        
+        // --- RAG PIPELINE: Process the Solution PDF ---
+        let ragChunks = [];
+        if (solutionUrl) {
+             console.log('  Extracting text for RAG Knowledge Base...');
+             const rawText = await extractTextFromPdfUrl(solutionUrl);
+             if (rawText) {
+                 const chunks = chunkText(rawText);
+                 ragChunks = await generateEmbeddings(chunks);
+                 console.log(`  Generated ${ragChunks.length} vector embeddings for this paper.`);
+             }
+        }
 
         const newPaper = await Paper.create({
             title,
@@ -252,7 +265,8 @@ const uploadPaper = async (req, res) => {
             pdfPublicId,
             solutionUrl,
             solutionPublicId,
-            videoUrl
+            videoUrl,
+            ragChunks // Inject the RAG embeddings into the database
         });
 
         console.log('✅ Paper uploaded successfully:', newPaper._id);
@@ -302,6 +316,54 @@ const deletePaper = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+
+async function extractTextFromPdfUrl(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const data = await pdfParse(buffer);
+        return data.text;
+    } catch (err) {
+        console.error("PDF text extraction failed:", err);
+        return "";
+    }
+}
+
+// 2. Split text into overlapping chunks (approx 400 words per chunk)
+function chunkText(text, maxWords = 400, overlap = 50) {
+    const words = text.split(/\s+/);
+    const chunks = [];
+    for (let i = 0; i < words.length; i += (maxWords - overlap)) {
+        const chunk = words.slice(i, i + maxWords).join(' ');
+        if (chunk.trim()) chunks.push(chunk);
+    }
+    return chunks;
+}
+
+// 3. Convert text chunks into Vector Embeddings using Gemini
+async function generateEmbeddings(chunks) {
+    if (!process.env.GEMINI_API_KEY) return [];
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    
+    const ragChunks = [];
+    for (const chunk of chunks) {
+        try {
+            // Embed each chunk
+            const result = await model.embedContent(chunk);
+            ragChunks.push({
+                text: chunk,
+                embedding: result.embedding.values // The numerical vector array
+            });
+        } catch (err) {
+            console.error("Embedding generation failed for a chunk:", err.message);
+        }
+    }
+    return ragChunks;
+}
 
 // @desc    Add a comment to a paper
 // @route   POST /api/papers/:id/comment

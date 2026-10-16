@@ -12,7 +12,14 @@ const PaperSchema = new mongoose.Schema({
     solutionPublicId: { type: String },
     videoUrl: { type: String },
     adminNotes: { type: String , select : false},
-    
+    solutionPublicId: { type: String },
+    videoUrl: { type: String },
+    adminNotes: { type: String , select : false},
+    ragChunks: [{
+        text: { type: String, required: true },
+        embedding: { type: [Number], required: true }, // Array of floats from Gemini
+        pageNumber: { type: Number }
+    }],
     views: { type: Number, default: 0 },
     downloads: { type: Number, default: 0 },
     likes: [{
