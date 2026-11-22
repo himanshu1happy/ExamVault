@@ -186,7 +186,16 @@ window.fetch = async (...args) => {
             if (!user) {
                 profileArea.innerHTML = '<a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>';
             } else {
+                const safeName = escapeHTML(user.fullname || user.name || 'Profile');
+                const avatarHTML = user.photoUrl
+                    ? `<img src="${escapeHTML(user.photoUrl)}" alt="Avatar" style="width: 1.5rem; height: 1.5rem; border-radius: 50%; object-fit: cover;">`
+                    : `<i class="fa-solid fa-circle-user" style="color: var(--primary); font-size: 1.1rem;"></i>`;
+
                 profileArea.innerHTML = `
+                    <a href="dashboard.html" class="nav-link" id="nav-profile-btn" style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.85rem; border-radius: var(--radius-full); border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 500; font-size: 0.85rem; text-decoration: none; background: rgba(79, 70, 229, 0.08); transition: var(--transition);" title="My Profile & Saved Items">
+                        ${avatarHTML}
+                        <span>${safeName}</span>
+                    </a>
                     ${isAdmin(user) ? '<a href="admin.html" id="nav-admin-btn" aria-label="Open Admin Studio"><span class="admin-control-icon"><i class="fa-solid fa-shield-halved"></i></span><span class="admin-control-label">Admin Studio</span><i class="fa-solid fa-arrow-up-right-from-square admin-control-arrow"></i></a>' : ''}
                     <button type="button" class="btn-nav-primary" id="nav-logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
                 `;
@@ -194,19 +203,28 @@ window.fetch = async (...args) => {
             }
         }
 
-        document.querySelectorAll('a[href="dashboard.html"]').forEach((link) => link.remove());
         const mobileMenu = document.getElementById('mobile-menu');
-        if (mobileMenu && user && !mobileMenu.querySelector('#mobile-logout-btn')) {
-            const logoutLink = document.createElement('a');
-            logoutLink.id = 'mobile-logout-btn';
-            logoutLink.href = '#';
-            logoutLink.className = 'nav-link';
-            logoutLink.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Logout';
-            logoutLink.addEventListener('click', (event) => {
-                event.preventDefault();
-                logout();
-            });
-            mobileMenu.appendChild(logoutLink);
+        if (mobileMenu && user) {
+            if (!mobileMenu.querySelector('#mobile-profile-btn')) {
+                const profileLink = document.createElement('a');
+                profileLink.id = 'mobile-profile-btn';
+                profileLink.href = 'dashboard.html';
+                profileLink.className = 'nav-link';
+                profileLink.innerHTML = '<i class="fa-solid fa-circle-user"></i> My Profile';
+                mobileMenu.prepend(profileLink);
+            }
+            if (!mobileMenu.querySelector('#mobile-logout-btn')) {
+                const logoutLink = document.createElement('a');
+                logoutLink.id = 'mobile-logout-btn';
+                logoutLink.href = '#';
+                logoutLink.className = 'nav-link';
+                logoutLink.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Logout';
+                logoutLink.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    logout();
+                });
+                mobileMenu.appendChild(logoutLink);
+            }
         }
     };
 
