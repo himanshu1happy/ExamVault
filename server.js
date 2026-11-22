@@ -3,7 +3,6 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = rateLimit;
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 require('dotenv').config();
@@ -111,7 +110,8 @@ const authEmailLimiter = rateLimit({
     keyGenerator: req => {
         const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
         const accountKey = email ? crypto.createHash('sha256').update(email).digest('hex') : 'unknown';
-        return `${ipKeyGenerator(req.ip)}:${accountKey}`;
+        const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        return `${clientIp}:${accountKey}`;
     }
 });
 app.use('/api', apiLimiter);
@@ -172,7 +172,7 @@ app.use(errorHandler);
         console.error('[Startup] Error resetting pending papers:', err.message);
     }
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 ExamVault Stack listening operational on port ${PORT}`);
     });
 })();
