@@ -5,51 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Exams | ExamVault</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 <body>
-    <main>
-        <div class="page-header">
-            <div class="page-header-content text-center stagger">
-                <h1>Browse All Exams</h1>
-                <p style="margin: 0 auto;">Select your target examination to view previous year question papers, mock tests, and detailed solutions.</p>
-            </div>
-        </div>
-        <nav class="navbar" id="navbar">
-    <div class="nav-container">
-        <a href="index.html" class="nav-logo">
-            <div class="nav-logo-icon"><i class="fa-solid fa-graduation-cap"></i></div>
-            <div class="nav-logo-text">Exam<span>Vault</span></div>
-        </a>
-        
-        <div class="nav-links">
-            <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
-            <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
-            <a href="about.html" class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a>
-            <a href="contact.html" class="nav-link"><i class="fa-solid fa-envelope"></i> Contact</a>
-        </div>
+    
 
         <div class="nav-actions">
             <button class="btn-icon" id="theme-toggle" aria-label="Toggle Adaptive Application Theme">
                 <i class="fa-solid fa-moon"></i>
             </button>
 
-            <div id="nav-profile-subsystem" style="display: flex; align-items: center; gap: 0.8rem;">
-                <a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>
+            
+                <button class="hamburger" id="hamburger">
+                    <span></span><span></span><span></span>
+                </button>
             </div>
-
-            <button class="hamburger" id="hamburger">
-                <span></span><span></span><span></span>
-            </button>
         </div>
-    </div>
-</nav>
+    </nav>
 
-<div class="mobile-menu" id="mobile-menu">
-    <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
-    <a href="papers.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Papers</a>
-    <a href="dashboard.html" class="nav-link" id="mobile-profile-link"><i class="fa-solid fa-user"></i> My Profile</a>
-</div>
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-search">
+            <i class="fa-solid fa-search nav-search-icon"></i>
+            <input type="text" id="mobile-search-input" placeholder="Search...">
+        </div>
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="exam.html" class="nav-link active">Exams</a>
+        <a href="papers.html" class="nav-link">Papers</a>
+    </div>
+
+    <main style="margin-top: 80px;">
+        <div class="page-header">
+            <div class="page-header-content text-center stagger">
+                <h1>Browse All Exams</h1>
+                <p style="margin: 0 auto;">Select your target examination to view previous year question papers, mock tests, and detailed solutions.</p>
+            </div>
+        </div>
 
         <section class="section">
             <div class="section-container">
@@ -62,7 +52,7 @@
                 </div>
 
                 <div class="exam-grid stagger">
-                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                    <div class="exam-card" data-category="engineering" data-navigation-target="papers.html?exam=JEE%20Main" role="link" tabindex="0">
                         <div class="exam-card-icon icon-blue"><i class="fa-solid fa-rocket"></i></div>
                         <h3 class="exam-card-name">JEE Main</h3>
                         <p class="exam-card-full">Joint Entrance Exam</p>
@@ -72,7 +62,17 @@
                         <button class="exam-card-btn">View Papers</button>
                     </div>
 
-                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                    <div class="exam-card" data-category="engineering" data-navigation-target="papers.html?exam=JEE%20Advanced" role="link" tabindex="0">
+                        <div class="exam-card-icon icon-blue"><i class="fa-solid fa-atom"></i></div>
+                        <h3 class="exam-card-name">JEE Advanced</h3>
+                        <p class="exam-card-full">IIT Entrance Exam</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 95 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" data-category="medical" data-navigation-target="papers.html?exam=NEET" role="link" tabindex="0">
                         <div class="exam-card-icon icon-green"><i class="fa-solid fa-stethoscope"></i></div>
                         <h3 class="exam-card-name">NEET UG</h3>
                         <p class="exam-card-full">National Eligibility Entrance Test</p>
@@ -82,7 +82,7 @@
                         <button class="exam-card-btn">View Papers</button>
                     </div>
 
-                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                    <div class="exam-card" data-category="government" data-navigation-target="papers.html?exam=UPSC" role="link" tabindex="0">
                         <div class="exam-card-icon icon-purple"><i class="fa-solid fa-building-columns"></i></div>
                         <h3 class="exam-card-name">UPSC CSE</h3>
                         <p class="exam-card-full">Civil Services Exam</p>
@@ -92,12 +92,42 @@
                         <button class="exam-card-btn">View Papers</button>
                     </div>
 
-                    <div class="exam-card" onclick="window.location.href='papers.html'">
+                    <div class="exam-card" data-category="government" data-navigation-target="papers.html?exam=SSC" role="link" tabindex="0">
+                        <div class="exam-card-icon icon-purple"><i class="fa-solid fa-landmark"></i></div>
+                        <h3 class="exam-card-name">SSC CGL</h3>
+                        <p class="exam-card-full">Staff Selection Commission</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 130 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" data-category="engineering" data-navigation-target="papers.html?exam=GATE" role="link" tabindex="0">
                         <div class="exam-card-icon icon-pink"><i class="fa-solid fa-microchip"></i></div>
                         <h3 class="exam-card-name">GATE</h3>
                         <p class="exam-card-full">Graduate Aptitude Test</p>
                         <div class="exam-card-meta">
                             <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 115 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" data-category="management" data-navigation-target="papers.html?exam=CAT" role="link" tabindex="0">
+                        <div class="exam-card-icon icon-orange" style="color: #e17055;"><i class="fa-solid fa-chart-line"></i></div>
+                        <h3 class="exam-card-name">CAT</h3>
+                        <p class="exam-card-full">Common Admission Test</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 75 Papers</span>
+                        </div>
+                        <button class="exam-card-btn">View Papers</button>
+                    </div>
+
+                    <div class="exam-card" data-category="management" data-navigation-target="papers.html?exam=CUET" role="link" tabindex="0">
+                        <div class="exam-card-icon icon-yellow" style="color: #fdcb6e;"><i class="fa-solid fa-school"></i></div>
+                        <h3 class="exam-card-name">CUET</h3>
+                        <p class="exam-card-full">Common University Entrance Test</p>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-count"><i class="fa-regular fa-file-lines"></i> 60 Papers</span>
                         </div>
                         <button class="exam-card-btn">View Papers</button>
                     </div>
@@ -107,6 +137,5 @@
     </main>
 
     <script src="js/script.js"></script>
-    <script src="js/ai-assistant.js"></script>
 </body>
 </html>

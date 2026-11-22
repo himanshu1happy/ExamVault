@@ -1,118 +1,21 @@
+const mongoose = require('mongoose');
 const Paper = require('../models/Paper');
 const User = require('../models/User');
-const fs = require('fs/promises');
-const path = require('path');
-const cloudinary = require('../config/cloudinary');
+const Chunk = require('../models/Chunk');
+const { uploadBuffer, deleteFile } = require('../utils/cloudinaryUpload');
+const { indexPaper, isPaperIndexing } = require('../services/indexPaper');
 
-const uploadRoots = [
-    path.resolve(__dirname, '..', '..', 'public', 'uploads'),
-    path.resolve(__dirname, '..', '..', 'uploads')
-];
-const pdfParse = require('pdf-parse');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const getUploadedFile = (files, fieldName) => {
-    const fieldFiles = files && files[fieldName];
-    return Array.isArray(fieldFiles) ? fieldFiles[0] : undefined;
-};
-
-const getUploadedFileUrl = (file) => {
-    let url = String(file?.path || file?.secure_url || file?.url || '').trim();
-    // Add inline display flag for Cloudinary raw resources to show in iframe instead of download
-    if (url.includes('cloudinary.com') && url.includes('/raw/upload/')) {
-        url = url.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
-    }
-    return url;
-};
-const getUploadedPublicId = (file) => String(file?.filename || file?.public_id || '').trim();
-
-const getCloudinaryPublicIdFromUrl = (url) => {
-    try {
-        const pathname = new URL(String(url || '')).pathname;
-        const uploadMarker = '/raw/upload/';
-        const uploadIndex = pathname.indexOf(uploadMarker);
-        if (uploadIndex === -1) return '';
-
-        return decodeURIComponent(
-            pathname
-                .slice(uploadIndex + uploadMarker.length)
-                .replace(/^v\d+\//, '')
-        );
-    } catch (error) {
-        return '';
-    }
-};
-
-const removeLocalUploadIfUnused = async (url) => {
-    const cleanUrl = String(url || '').split('?')[0].replace(/\\/g, '/');
-    if (!cleanUrl.startsWith('/uploads/')) return;
-
-    const filename = path.basename(cleanUrl);
-    if (!filename) return;
-
-    const stillReferenced = await Paper.exists({
-        $or: [
-            { pdfUrl: cleanUrl },
-            { solutionUrl: cleanUrl }
-        ]
-    });
-
-    if (stillReferenced) return;
-
-    await Promise.all(uploadRoots.map(async (root) => {
-        const filePath = path.resolve(root, filename);
-        if (!filePath.startsWith(root + path.sep)) return;
-
-        try {
-            await fs.unlink(filePath);
-        } catch (error) {
-            if (error.code !== 'ENOENT') {
-                console.error(`Could not delete upload file ${filePath}:`, error.message);
-            }
-        }
-    }));
-};
-
-const removeCloudinaryUploadIfUnused = async ({ publicId, url }) => {
-    const cleanPublicId = String(publicId || '').trim();
-    if (!cleanPublicId) return;
-
-    const cleanUrl = String(url || '').trim();
-    const stillReferencedQuery = {
-        $or: [
-            { pdfPublicId: cleanPublicId },
-            { solutionPublicId: cleanPublicId }
-        ]
-    };
-
-    if (cleanUrl) {
-        stillReferencedQuery.$or.push(
-            { pdfUrl: cleanUrl },
-            { solutionUrl: cleanUrl }
-        );
-    }
-
-    const stillReferenced = await Paper.exists(stillReferencedQuery);
-    if (stillReferenced) return;
-
-    try {
-        await cloudinary.uploader.destroy(cleanPublicId, {
-            resource_type: 'raw',
-            invalidate: true
-        });
-    } catch (error) {
-        console.error(`Could not delete Cloudinary upload ${cleanPublicId}:`, error.message);
-    }
-};
-
-// @desc    Get all papers with optional filters (Exam Type, Year)
+// @desc    Get all papers with optional filters (Exam Type, Year) with Pagination & Computed Likes/Dislikes
 // @route   GET /api/papers
 // @access  Public
 const getPapers = async (req, res) => {
     try {
         const { examType, year, search } = req.query;
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+        const skip = (page - 1) * limit;
         let query = {};
 
-        // Apply filters dynamically if provided in the URL query string
         if (examType && examType !== 'all') query.examType = examType;
         if (year && year !== 'all') query.year = Number(year);
 
@@ -126,179 +29,325 @@ const getPapers = async (req, res) => {
             ];
         }
 
-        // FIX: Model 'Paper' use karo na ki local variable 'papers'
-        const papers = await Paper.find(query).sort({ uploadedAt: -1 });
-        res.status(200).json({ success: true, count: papers.length, data: papers });
+        const [papers, total] = await Promise.all([
+            Paper.find(query)
+                .select('-ragChunks -likes -dislikes -comments -adminNotes')
+                .sort({ uploadedAt: -1, createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Paper.countDocuments(query)
+        ]);
+
+        const formattedPapers = papers.map(paper => ({
+            ...paper,
+            likesCount: paper.likesCount ?? (Array.isArray(paper.likes) ? paper.likes.length : 0),
+            dislikesCount: paper.dislikesCount ?? (Array.isArray(paper.dislikes) ? paper.dislikes.length : 0)
+        }));
+
+        res.status(200).json({
+            success: true,
+            total,
+            count: total,
+            page,
+            pages: Math.ceil(total / limit),
+            data: formattedPapers
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Get papers error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load question papers.' });
     }
 };
 
-// @desc    Get a single paper's details by ID
+// @desc    Get a single paper's details by ID (Atomic view count increment)
 // @route   GET /api/papers/:id
 // @access  Public
 const getPaperById = async (req, res) => {
     try {
-        const paper = await Paper.findById(req.params.id);
-        if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
         }
-        
-        // Automatically increment view count when a user clicks into a solution page
-        paper.views = (paper.views || 0) + 1;
-        await paper.save();
 
-        res.status(200).json({ success: true, data: paper });
+        const paper = await Paper.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { views: 1 } },
+            { new: true, projection: '-ragChunks -ragAssetUrl -ragAssetPublicId -ragEmbeddingModel' }
+        );
+
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        const likesCount = Array.isArray(paper.likes) ? paper.likes.length : 0;
+        const dislikesCount = Array.isArray(paper.dislikes) ? paper.dislikes.length : 0;
+        const isLiked = req.user ? (paper.likes || []).some(id => id.equals(req.user._id)) : false;
+        const isDisliked = req.user ? (paper.dislikes || []).some(id => id.equals(req.user._id)) : false;
+
+        const paperObj = paper.toObject ? paper.toObject() : paper;
+        delete paperObj.likes;
+        delete paperObj.dislikes;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...paperObj,
+                likesCount,
+                dislikesCount,
+                isLiked,
+                isDisliked
+            }
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Get paper by ID error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load paper details.' });
     }
 };
 
-// @desc    Get comments for a paper without changing view count
-// @route   GET /api/papers/:id/comments
-const getPaperComments = async (req, res) => {
+// @desc    Increment download count and get PDF URL (Atomic $inc)
+// @route   POST /api/papers/:id/download
+// @access  Public
+const downloadPaper = async (req, res) => {
     try {
-        const paper = await Paper.findById(req.params.id).select('comments');
-        if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
         }
 
-        res.status(200).json({ success: true, data: paper.comments || [] });
+        const paper = await Paper.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { downloads: 1 } },
+            { new: true, select: 'pdfUrl downloads title' }
+        );
+
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            downloads: paper.downloads,
+            url: paper.pdfUrl,
+            title: paper.title
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Download paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to process download.' });
     }
 };
 
-// @desc    Like or Unlike a paper (Toggle & Anti-Spam)
+// @desc    Like or Unlike a paper (Atomic $addToSet & $pull)
 // @route   POST /api/papers/:id/like
+// @access  Private
 const likePaper = async (req, res) => {
     try {
-        const paper = await Paper.findById(req.params.id);
-        if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
-        }
-
         const userId = req.user._id;
-        const alreadyLikedIndex = paper.likes.findIndex((likedUserId) => likedUserId.equals(userId));
-        const alreadyDislikedIndex = paper.dislikes.findIndex((dislikedUserId) => dislikedUserId.equals(userId));
-
-        // STEP 1: Agar pehle Dislike kiya tha, toh pehle use chup-chaap hata do
-        if (alreadyDislikedIndex !== -1) {
-            paper.dislikes.splice(alreadyDislikedIndex, 1);
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
         }
 
-        // STEP 2: Ab Like ka normal Toggle logic chalao
-        if (alreadyLikedIndex === -1) {
-            // Case A: Like list mein nahi tha -> Add karo (LIKE)
-            paper.likes.push(userId);
-        } else {
-            // Case B: Pehle se Like list mein tha -> Nikaal do (UNLIKE)
-            paper.likes.splice(alreadyLikedIndex, 1);
-        }
+        const existing = await Paper.findById(req.params.id).select('likes dislikes');
+        if (!existing) return res.status(404).json({ success: false, message: 'Paper not found.' });
 
-        await paper.save();
+        const alreadyLiked = (existing.likes || []).some(id => id.equals(userId));
+        const update = alreadyLiked
+            ? { $pull: { likes: userId } }
+            : { $addToSet: { likes: userId }, $pull: { dislikes: userId } };
 
-        // Frontend ko array ki length (total likes count) bhej do
-        res.status(200).json({ 
-            success: true, 
+        const paper = await Paper.findByIdAndUpdate(req.params.id, update, { new: true, select: 'likes dislikes' });
+
+        res.status(200).json({
+            success: true,
             likesCount: paper.likes.length,
-            isLiked: alreadyLikedIndex === -1 // True agar abhi like kiya, False agar unlike kiya
+            dislikesCount: paper.dislikes.length,
+            isLiked: !alreadyLiked
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Like paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update like status.' });
     }
 };
-// @desc    Upload a new paper (Admin Only)
-// @route   POST /api/papers/upload
-const uploadPaper = async (req, res) => {
+
+// @desc    Dislike or Undislike a paper (Atomic $addToSet & $pull)
+// @route   POST /api/papers/:id/dislike
+// @access  Private
+const dislikePaper = async (req, res) => {
     try {
-        console.log('📤 Upload attempt started');
-        console.log('req.files:', req.files ? Object.keys(req.files) : 'NO FILES');
-        console.log('req.body:', req.body);
-        
-        const { title, examType, year, subject, difficulty } = req.body;
-        const videoUrl = String(req.body.videoUrl || req.body.solutionUrl || '').trim();
-        const paperFile = getUploadedFile(req.files, 'paperFile');
-        const solutionFile = getUploadedFile(req.files, 'solutionFile');
-        
-        console.log('paperFile:', paperFile ? { filename: paperFile.filename, size: paperFile.size } : 'MISSING');
-        console.log('solutionFile:', solutionFile ? { filename: solutionFile.filename, size: solutionFile.size } : 'NOT PROVIDED');
-        
-        if (!paperFile) {
-            console.error('❌ No paperFile provided');
-            return res.status(400).json({ success: false, message: 'Please attach Question Paper PDF.' });
+        const userId = req.user._id;
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
         }
 
-        const pdfUrl = getUploadedFileUrl(paperFile);
-        const pdfPublicId = getUploadedPublicId(paperFile);
+        const existing = await Paper.findById(req.params.id).select('likes dislikes');
+        if (!existing) return res.status(404).json({ success: false, message: 'Paper not found.' });
 
-        console.log('pdfUrl:', pdfUrl);
-        console.log('pdfPublicId:', pdfPublicId);
+        const alreadyDisliked = (existing.dislikes || []).some(id => id.equals(userId));
+        const update = alreadyDisliked
+            ? { $pull: { dislikes: userId } }
+            : { $addToSet: { dislikes: userId }, $pull: { likes: userId } };
 
-        if (!pdfUrl) {
-            console.error('❌ No URL returned from Cloudinary');
-            return res.status(500).json({ success: false, message: 'Question paper upload did not return a file URL.' });
-        }
+        const paper = await Paper.findByIdAndUpdate(req.params.id, update, { new: true, select: 'likes dislikes' });
 
-        const solutionUrl = solutionFile ? getUploadedFileUrl(solutionFile) : '';
-        const solutionPublicId = solutionFile ? getUploadedPublicId(solutionFile) : '';
-        
-        // --- RAG PIPELINE: Process the Solution PDF ---
-        let ragChunks = [];
-        if (solutionUrl) {
-             console.log('  Extracting text for RAG Knowledge Base...');
-             const rawText = await extractTextFromPdfUrl(solutionUrl);
-             if (rawText) {
-                 const chunks = chunkText(rawText);
-                 ragChunks = await generateEmbeddings(chunks);
-                 console.log(`  Generated ${ragChunks.length} vector embeddings for this paper.`);
-             }
-        }
-
-        const newPaper = await Paper.create({
-            title,
-            examType,
-            year: Number(year),
-            subject,
-            difficulty,
-            pdfUrl,
-            pdfPublicId,
-            solutionUrl,
-            solutionPublicId,
-            videoUrl,
-            ragChunks // Inject the RAG embeddings into the database
+        res.status(200).json({
+            success: true,
+            likesCount: paper.likes.length,
+            dislikesCount: paper.dislikes.length,
+            isDisliked: !alreadyDisliked
         });
-
-        console.log('✅ Paper uploaded successfully:', newPaper._id);
-        res.status(201).json({ success: true, message: 'Paper & Solution uploaded!', data: newPaper });
     } catch (error) {
-        console.error('❌ Upload error:', error.message);
-        console.error('Error stack:', error.stack);
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Dislike paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update dislike status.' });
     }
 };
 
-// @desc    Delete a paper and its local PDFs (Admin Only)
+// @desc    Upload a new paper (Admin Only, Cloudinary Direct, Rollback on Failure, Sets ragStatus: 'pending')
+// @route   POST /api/papers/upload
+// @access  Admin
+const uploadPaper = async (req, res) => {
+    const uploadedFiles = [];
+    try {
+        const { title, examType, year, subject, difficulty } = req.body;
+        const currentYear = new Date().getFullYear();
+        const parsedYear = Number(year);
+
+        const cleanTitle = typeof title === 'string' ? title.trim() : '';
+        const cleanSubject = typeof subject === 'string' ? subject.trim() : '';
+        const validExamTypes = ['JEE Main', 'JEE Advanced', 'NEET', 'GATE', 'UPSC', 'SSC', 'CAT', 'CUET'];
+
+        // 1. Validations
+        if (!cleanTitle || cleanTitle.length < 3) {
+            return res.status(400).json({ success: false, message: 'Paper title must be at least 3 characters.' });
+        }
+
+        if (!examType || !validExamTypes.includes(examType)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid exam type. Must be one of: ${validExamTypes.join(', ')}`
+            });
+        }
+
+        if (!parsedYear || parsedYear < 1990 || parsedYear > currentYear + 1) {
+            return res.status(400).json({
+                success: false,
+                message: `Year must be between 1990 and ${currentYear + 1}.`
+            });
+        }
+
+        if (!cleanSubject) {
+            return res.status(400).json({ success: false, message: 'Subject is required.' });
+        }
+
+        const paperFile = req.files?.paperFile?.[0];
+        if (!paperFile || !paperFile.buffer) {
+            return res.status(400).json({ success: false, message: 'Question Paper PDF is required.' });
+        }
+
+        // 2. Cloudinary Uploads
+        const paperUpload = await uploadBuffer(paperFile.buffer, {
+            folder: 'ExamVault_Vault/papers',
+            resourceType: 'raw',
+            publicIdPrefix: 'paper'
+        });
+        uploadedFiles.push(paperUpload);
+
+        let solutionUpload = null;
+        const solutionFile = req.files?.solutionFile?.[0];
+        if (solutionFile && solutionFile.buffer) {
+            solutionUpload = await uploadBuffer(solutionFile.buffer, {
+                folder: 'ExamVault_Vault/solutions',
+                resourceType: 'raw',
+                publicIdPrefix: 'solution'
+            });
+            uploadedFiles.push(solutionUpload);
+        }
+
+        let thumbnailUpload = null;
+        const thumbnailFile = req.files?.thumbnail?.[0];
+        if (thumbnailFile && thumbnailFile.buffer) {
+            thumbnailUpload = await uploadBuffer(thumbnailFile.buffer, {
+                folder: 'ExamVault_Vault/thumbnails',
+                resourceType: 'image',
+                publicIdPrefix: 'thumb'
+            });
+            uploadedFiles.push(thumbnailUpload);
+        }
+
+        // 3. Database Persistence (RAG indexing deferred to Stage 4)
+        const newPaper = await Paper.create({
+            title: cleanTitle,
+            examType,
+            year: parsedYear,
+            subject: cleanSubject,
+            difficulty: difficulty || 'Moderate',
+            videoUrl: String(req.body.videoUrl || '').trim(),
+            pdfUrl: paperUpload.url,
+            pdfPublicId: paperUpload.publicId,
+            pdfResourceType: paperUpload.resourceType || 'raw',
+            solutionUrl: solutionUpload?.url || '',
+            solutionPublicId: solutionUpload?.publicId || '',
+            solutionResourceType: solutionUpload?.resourceType || 'raw',
+            thumbnailUrl: thumbnailUpload?.url || '',
+            thumbnailPublicId: thumbnailUpload?.publicId || '',
+            ragStatus: 'pending'
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Paper uploaded successfully.',
+            data: newPaper
+        });
+
+        // Trigger RAG indexing in the background with memory buffers
+        const paperFileObj = req.files && req.files.paperFile && req.files.paperFile[0];
+        const solutionFileObj = req.files && req.files.solutionFile && req.files.solutionFile[0];
+        indexPaper(newPaper._id, {
+            questionBuffer: paperFileObj ? paperFileObj.buffer : null,
+            solutionBuffer: solutionFileObj ? solutionFileObj.buffer : null
+        }).catch(err => {
+            console.error(`Background RAG indexing initiation error for paper ${newPaper._id}:`, err);
+        });
+    } catch (error) {
+        // Rollback uploaded Cloudinary files if DB creation fails
+        for (const file of uploadedFiles) {
+            try {
+                await deleteFile(file.publicId, file.resourceType);
+            } catch (delError) {
+                console.error(`Rollback deletion failed for ${file.publicId}:`, delError.message);
+            }
+        }
+        console.error('Upload paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload paper. Please try again.' });
+    }
+};
+
+// @desc    Delete a paper and its Cloudinary assets (Admin Only)
 // @route   DELETE /api/papers/:id
 // @access  Admin
 const deletePaper = async (req, res) => {
     try {
-        const paper = await Paper.findById(req.params.id);
-        if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
         }
 
-        const uploadUrls = [...new Set([paper.pdfUrl, paper.solutionUrl].filter(Boolean))];
-        const cloudinaryUploads = [
-            {
-                publicId: paper.pdfPublicId || getCloudinaryPublicIdFromUrl(paper.pdfUrl),
-                url: paper.pdfUrl
-            },
-            {
-                publicId: paper.solutionPublicId || getCloudinaryPublicIdFromUrl(paper.solutionUrl),
-                url: paper.solutionUrl
-            }
-        ].filter((upload) => upload.publicId);
+        const paper = await Paper.findById(req.params.id);
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        // Delete associated Cloudinary assets with exact resource_type
+        if (paper.pdfPublicId) {
+            await deleteFile(paper.pdfPublicId, paper.pdfResourceType || 'raw').catch(err => console.error('Cloudinary paper PDF delete failed:', err.message));
+        }
+        if (paper.solutionPublicId) {
+            await deleteFile(paper.solutionPublicId, paper.solutionResourceType || 'raw').catch(err => console.error('Cloudinary solution PDF delete failed:', err.message));
+        }
+        if (paper.thumbnailPublicId) {
+            await deleteFile(paper.thumbnailPublicId, 'image').catch(err => console.error('Cloudinary thumbnail delete failed:', err.message));
+        }
+        if (paper.ragAssetPublicId) {
+            await deleteFile(paper.ragAssetPublicId, 'raw').catch(err => console.error('Cloudinary RAG asset delete failed:', err.message));
+        }
+
+        // Delete associated Chunk documents from Chunk collection
+        await Chunk.deleteMany({ paperId: paper._id });
 
         await Paper.deleteOne({ _id: paper._id });
         await User.updateMany(
@@ -306,75 +355,28 @@ const deletePaper = async (req, res) => {
             { $pull: { savedPapers: paper._id } }
         );
 
-        await Promise.all([
-            ...uploadUrls.map(removeLocalUploadIfUnused),
-            ...cloudinaryUploads.map(removeCloudinaryUploadIfUnused)
-        ]);
-
-        res.status(200).json({ success: true, message: 'Paper removed successfully' });
+        res.status(200).json({ success: true, message: 'Paper removed successfully.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Delete paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to remove paper.' });
     }
 };
 
-
-async function extractTextFromPdfUrl(url) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const data = await pdfParse(buffer);
-        return data.text;
-    } catch (err) {
-        console.error("PDF text extraction failed:", err);
-        return "";
-    }
-}
-
-// 2. Split text into overlapping chunks (approx 400 words per chunk)
-function chunkText(text, maxWords = 400, overlap = 50) {
-    const words = text.split(/\s+/);
-    const chunks = [];
-    for (let i = 0; i < words.length; i += (maxWords - overlap)) {
-        const chunk = words.slice(i, i + maxWords).join(' ');
-        if (chunk.trim()) chunks.push(chunk);
-    }
-    return chunks;
-}
-
-// 3. Convert text chunks into Vector Embeddings using Gemini
-async function generateEmbeddings(chunks) {
-    if (!process.env.GEMINI_API_KEY) return [];
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-    
-    const ragChunks = [];
-    for (const chunk of chunks) {
-        try {
-            // Embed each chunk
-            const result = await model.embedContent(chunk);
-            ragChunks.push({
-                text: chunk,
-                embedding: result.embedding.values // The numerical vector array
-            });
-        } catch (err) {
-            console.error("Embedding generation failed for a chunk:", err.message);
-        }
-    }
-    return ragChunks;
-}
-
 // @desc    Add a comment to a paper
-// @route   POST /api/papers/:id/comment
+// @route   POST /api/papers/:id/comments
+// @access  Private
 const addComment = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const paper = await Paper.findById(req.params.id);
-        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found.' });
 
         const { text } = req.body;
-        const cleanText = text ? text.trim() : '';
-        if (!cleanText) return res.status(400).json({ success: false, message: 'Comment text is required' });
+        const cleanText = typeof text === 'string' ? text.trim() : '';
+        if (!cleanText) return res.status(400).json({ success: false, message: 'Comment text is required.' });
 
         paper.comments.push({
             user: req.user._id,
@@ -386,7 +388,8 @@ const addComment = async (req, res) => {
         const newComment = paper.comments[paper.comments.length - 1];
         res.status(201).json({ success: true, data: newComment });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Add comment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to add comment.' });
     }
 };
 
@@ -395,12 +398,17 @@ const addComment = async (req, res) => {
 // @access  Private
 const getSaveStatus = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const user = await User.findById(req.user._id).select('savedPapers');
-        const saved = user.savedPapers.some((savedPaperId) => savedPaperId.equals(req.params.id));
+        const saved = (user?.savedPapers || []).some((savedPaperId) => savedPaperId.equals(req.params.id));
 
         res.status(200).json({ success: true, saved });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Get save status error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load save status.' });
     }
 };
 
@@ -409,13 +417,17 @@ const getSaveStatus = async (req, res) => {
 // @access  Private
 const toggleSavedPaper = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const paper = await Paper.findById(req.params.id).select('_id');
         if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
         }
 
         const user = await User.findById(req.user._id).select('savedPapers');
-        const savedPaperIndex = user.savedPapers.findIndex((savedPaperId) => savedPaperId.equals(paper._id));
+        const savedPaperIndex = (user.savedPapers || []).findIndex((savedPaperId) => savedPaperId.equals(paper._id));
 
         let saved;
         if (savedPaperIndex === -1) {
@@ -434,23 +446,29 @@ const toggleSavedPaper = async (req, res) => {
             savedPapersCount: user.savedPapers.length
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Toggle save paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update saved paper.' });
     }
 };
 
 // @desc    Admin reply to a paper comment
 // @route   POST /api/papers/:id/comments/:commentId/replies
+// @access  Admin
 const replyToComment = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const paper = await Paper.findById(req.params.id);
-        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found.' });
 
         const comment = paper.comments.id(req.params.commentId);
-        if (!comment) return res.status(404).json({ success: false, message: 'Comment not found' });
+        if (!comment) return res.status(404).json({ success: false, message: 'Comment not found.' });
 
         const { text } = req.body;
-        const cleanText = text ? text.trim() : '';
-        if (!cleanText) return res.status(400).json({ success: false, message: 'Reply text is required' });
+        const cleanText = typeof text === 'string' ? text.trim() : '';
+        if (!cleanText) return res.status(400).json({ success: false, message: 'Reply text is required.' });
 
         comment.replies.push({
             user: req.user._id,
@@ -462,78 +480,52 @@ const replyToComment = async (req, res) => {
 
         res.status(201).json({ success: true, data: comment });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Reply to comment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to post reply.' });
     }
 };
 
 // @desc    Admin delete a paper comment
 // @route   DELETE /api/papers/:id/comments/:commentId
+// @access  Admin
 const deleteComment = async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const paper = await Paper.findById(req.params.id);
-        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
+        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found.' });
 
         const comment = paper.comments.id(req.params.commentId);
-        if (!comment) return res.status(404).json({ success: false, message: 'Comment not found' });
+        if (!comment) return res.status(404).json({ success: false, message: 'Comment not found.' });
 
         paper.comments.pull(req.params.commentId);
         await paper.save();
 
-        res.status(200).json({ success: true, message: 'Comment removed' });
+        res.status(200).json({ success: true, message: 'Comment removed.' });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Delete comment error:', error);
+        res.status(500).json({ success: false, message: 'Failed to remove comment.' });
     }
 };
 
-// @desc    Dislike or Undislike a paper (Mutually Exclusive with Like)
-// @route   POST /api/papers/:id/dislike
-const dislikePaper = async (req, res) => {
-    try {
-        const paper = await Paper.findById(req.params.id);
-        if (!paper) return res.status(404).json({ success: false, message: 'Paper not found' });
-
-        const userId = req.user._id;
-        const alreadyDislikedIndex = paper.dislikes.findIndex((dislikedUserId) => dislikedUserId.equals(userId));
-        const alreadyLikedIndex = paper.likes.findIndex((likedUserId) => likedUserId.equals(userId));
-
-        // 1. Agar user ne pehle Like kiya tha, toh Like list se nikaal do
-        if (alreadyLikedIndex !== -1) {
-            paper.likes.splice(alreadyLikedIndex, 1);
-        }
-
-        // 2. Dislike Toggle Logic
-        if (alreadyDislikedIndex === -1) {
-            paper.dislikes.push(userId); // DISLIKE ADDED
-        } else {
-            paper.dislikes.splice(alreadyDislikedIndex, 1); // UNDISLIKED
-        }
-
-        await paper.save();
-
-        res.status(200).json({
-            success: true,
-            likesCount: paper.likes.length,
-            dislikesCount: paper.dislikes.length,
-            isDisliked: alreadyDislikedIndex === -1
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-// @desc    Get all comments for a specific paper
+// @desc    Get all comments for a specific paper (Public - Populates ONLY fullname, never email)
 // @route   GET /api/papers/:id/comments
+// @access  Public
 const getComments = async (req, res) => {
     try {
-        // Paper ko dhoondho aur uske comments array ko fetch karo
-        // Agar tumne user reference diya hai toh populate use kar sakte ho, otherwise direct paper.comments
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
         const paper = await Paper.findById(req.params.id)
             .select('comments')
-            .populate('comments.user', 'fullname name email')
-            .populate('comments.replies.user', 'fullname name email');
-        
+            .populate('comments.user', 'fullname')
+            .populate('comments.replies.user', 'fullname');
+
         if (!paper) {
-            return res.status(404).json({ success: false, message: 'Paper not found' });
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
         }
 
         const comments = [...(paper.comments || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -544,10 +536,198 @@ const getComments = async (req, res) => {
             data: comments
         });
     } catch (error) {
-        console.error("Error fetching comments:", error);
-        res.status(500).json({ success: false, message: 'Server Error loading comments' });
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ success: false, message: 'Server error loading comments.' });
     }
 };
 
+// @desc    Re-index paper RAG in background (Admin Only)
+// @route   POST /api/papers/:id/reindex
+// @access  Admin
+const reindexPaper = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
 
-module.exports = { getPapers, getPaperById, getComments, getSaveStatus, toggleSavedPaper, likePaper, dislikePaper, uploadPaper, deletePaper, addComment, replyToComment, deleteComment };
+        const paper = await Paper.findById(req.params.id);
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        if (isPaperIndexing(paper._id)) {
+            return res.status(409).json({
+                success: false,
+                message: 'RAG indexing is already in progress for this paper.'
+            });
+        }
+
+        indexPaper(paper._id, {}).catch(err => {
+            console.error(`Background reindexing error for paper ${paper._id}:`, err);
+        });
+
+        res.status(202).json({
+            success: true,
+            message: 'Paper re-indexing started in background.',
+            paperId: paper._id,
+            ragStatus: 'pending'
+        });
+    } catch (error) {
+        console.error('Reindex paper error:', error);
+        res.status(500).json({ success: false, message: 'Failed to initiate paper re-indexing.' });
+    }
+};
+
+// @desc    Get paper RAG index status & chunk counts (Admin Only)
+// @route   GET /api/papers/:id/index-status
+// @access  Admin
+const getPaperIndexStatus = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
+        const paper = await Paper.findById(req.params.id).select('title ragStatus ragError');
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        const [questionChunksCount, solutionChunksCount] = await Promise.all([
+            Chunk.countDocuments({ paperId: paper._id, kind: 'question' }),
+            Chunk.countDocuments({ paperId: paper._id, kind: 'solution' })
+        ]);
+
+        res.status(200).json({
+            success: true,
+            paperId: paper._id,
+            title: paper.title,
+            ragStatus: paper.ragStatus || 'none',
+            ragError: paper.ragError || '',
+            questionChunksCount,
+            solutionChunksCount,
+            totalChunks: questionChunksCount + solutionChunksCount,
+            isIndexing: isPaperIndexing(paper._id)
+        });
+    } catch (error) {
+        console.error('Get paper index status error:', error);
+        res.status(500).json({ success: false, message: 'Failed to retrieve indexing status.' });
+    }
+};
+
+// @desc    Edit paper details (Admin Only)
+// @route   PATCH /api/papers/:id
+// @access  Admin
+const editPaperDetails = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
+        const { title, examType, year, subject, difficulty, videoUrl, adminNotes } = req.body;
+
+        const updateData = {};
+        if (typeof title === 'string' && title.trim()) updateData.title = title.trim();
+        if (typeof examType === 'string' && examType.trim()) updateData.examType = examType.trim();
+        if (year !== undefined && !Number.isNaN(Number(year))) updateData.year = Number(year);
+        if (typeof subject === 'string') updateData.subject = subject.trim();
+        if (typeof difficulty === 'string') updateData.difficulty = difficulty.trim();
+        if (typeof videoUrl === 'string') updateData.videoUrl = videoUrl.trim();
+        if (typeof adminNotes === 'string') updateData.adminNotes = adminNotes.trim();
+
+        const paper = await Paper.findByIdAndUpdate(
+            req.params.id,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
+
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Paper details updated successfully.',
+            data: paper
+        });
+    } catch (error) {
+        console.error('Edit paper details error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update paper details.' });
+    }
+};
+
+// @desc    Replace solution PDF file (Admin Only)
+// @route   POST /api/papers/:id/replace-solution
+// @access  Admin
+const replaceSolutionPdf = async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ success: false, message: 'Invalid paper identifier.' });
+        }
+
+        const paper = await Paper.findById(req.params.id);
+        if (!paper) {
+            return res.status(404).json({ success: false, message: 'Paper not found.' });
+        }
+
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ success: false, message: 'Please provide a solution PDF file.' });
+        }
+
+        // Upload new solution PDF to Cloudinary
+        const uploadResult = await uploadBuffer(req.file.buffer, {
+            folder: 'ExamVault_Solutions',
+            resourceType: 'raw',
+            publicIdPrefix: `sol_${(paper.examType || 'exam').replace(/\s+/g, '_')}_${paper.year || 'year'}`
+        });
+
+        // Delete old solution PDF from Cloudinary if exists
+        if (paper.solutionPublicId) {
+            await deleteFile(paper.solutionPublicId, paper.solutionResourceType || 'raw').catch(err => {
+                console.error('Failed to delete old solution PDF from Cloudinary:', err.message);
+            });
+        }
+
+        paper.solutionUrl = uploadResult.url;
+        paper.solutionPublicId = uploadResult.publicId;
+        paper.solutionResourceType = uploadResult.resourceType || 'raw';
+        paper.ragStatus = 'pending';
+        paper.ragError = '';
+        await paper.save();
+
+        // Trigger background re-indexing with the new solution buffer
+        indexPaper(paper._id, {
+            solutionBuffer: req.file.buffer
+        }).catch(err => {
+            console.error(`Background reindexing error after solution replacement for paper ${paper._id}:`, err);
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Solution PDF replaced successfully. Re-indexing in progress.',
+            data: paper
+        });
+    } catch (error) {
+        console.error('Replace solution PDF error:', error);
+        res.status(500).json({ success: false, message: 'Failed to replace solution PDF.' });
+    }
+};
+
+module.exports = {
+    getPapers,
+    getPaperById,
+    getComments,
+    downloadPaper,
+    getSaveStatus,
+    toggleSavedPaper,
+    likePaper,
+    dislikePaper,
+    uploadPaper,
+    deletePaper,
+    addComment,
+    replyToComment,
+    deleteComment,
+    reindexPaper,
+    getPaperIndexStatus,
+    editPaperDetails,
+    replaceSolutionPdf
+};

@@ -3,115 +3,81 @@
    Full-Stack API & Animation Integration
    ======================================== */
 
-const PRODUCTION_API_ORIGIN = 'https://examvault-live.onrender.com';
 const API_ORIGIN = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
     ? window.location.origin
-    : PRODUCTION_API_ORIGIN;
+    : '';
 const API_BASE = `${API_ORIGIN}/api`;
 
- document.addEventListener('DOMContentLoaded', () => {
+const escapeHTML = (value) => {
+    if (!value) return '';
+    return String(value).replace(/[&<>'"]/g,
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+};
+window.escapeHTML = escapeHTML;
 
 const token = localStorage.getItem('examvault_token');
-const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
+let currentUser = (() => {
+    try {
+        return JSON.parse(localStorage.getItem('examvault_user') || 'null');
+    } catch (err) {
+        console.error('Failed to parse saved user:', err);
+        return null;
+    }
+})();
 
-    // ==========================================
-    // 🌍 SYSTEM 1: ADAPTIVE GLOBAL THEME CONTROLLER
-    // ==========================================
-    const themeToggle = document.getElementById('theme-toggle');
-    const htmlElement = document.documentElement;
-    
-    // Check local hardware cache configuration values
-    const savedTheme = localStorage.getItem('examVaultTheme') || 'light';
-    htmlElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
+const getCurrentUserRole = (user) => {
+    const roles = [user?.role, user?.userType]
+        .map(value => String(value || '').trim().toLowerCase());
+    return roles.includes('admin') ? 'admin' : 'user';
+};
 
-    if (false && themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = htmlElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            htmlElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('examVaultTheme', newTheme);
-            updateThemeIcon(newTheme);
-        });
+const isAdmin = (user) => getCurrentUserRole(user) === 'admin';
+
+const logout = () => {
+    localStorage.removeItem('examvault_token');
+    localStorage.removeItem('examvault_user');
+    window.location.assign('index.html');
+};
+
+const getAuthHeaders = (extraHeaders = {}) => {
+    const headers = {};
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
     }
 
-    function updateThemeIcon(theme) {
-        if (!themeToggle) return;
-        const themeIcon = themeToggle.querySelector('i');
-        if (!themeIcon) return;
-        if (theme === 'dark') {
-            themeIcon.className = 'fa-solid fa-sun';
-        } else if (theme === 'reading') {
-            themeIcon.className = 'fa-solid fa-book-open-reader';
-        } else {
-            themeIcon.className = 'fa-solid fa-moon';
+    return { ...headers, ...extraHeaders };
+};
+
+const originalFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+    const response = await originalFetch(...args);
+    const request = args[0];
+    const headers = new Headers((args[1] && args[1].headers) || (request instanceof Request ? request.headers : undefined));
+    if (response.status === 401 && headers.has('Authorization')) {
+        localStorage.removeItem('examvault_token');
+        localStorage.removeItem('examvault_user');
+        if (!window.location.pathname.endsWith('/login.html')) {
+            window.location.assign('login.html?expired=1');
         }
     }
-
-    // ==========================================
-    // 👤 SYSTEM 2: SECURE CLIENT-STATE SESSION MONITOR
-    // ==========================================
-    // ==========================================
-    // 👤 SYSTEM 2: SECURE CLIENT-STATE SESSION MONITOR
-    // ==========================================
-    const profileSubsystem = document.getElementById('nav-profile-subsystem');
-
-    if (profileSubsystem && currentUser) {
-        
-        // 1. Agar user 'admin' hai, toh ek special red button banega, warna khali rahega
-        const adminButtonHTML = currentUser.role === 'admin' 
-            ? `<a href="admin.html" class="btn-sm btn-outline" style="border-color: #ff4a4a; color: #ff4a4a; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px;">
-                 <i class="fa-solid fa-crown"></i> Admin
-               </a>` 
-            : '';
-
-        // 2. Profile aur Logout ke sath Admin button ko inject kar do
-        profileSubsystem.innerHTML = `
-            ${adminButtonHTML}
-            <a href="dashboard.html" class="btn-sm btn-filled" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px;">
-                <i class="fa-solid fa-circle-user" style="font-size: 1.1rem;"></i> Profile
-            </a>
-            <button id="nav-logout-action" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border-radius: 6px; cursor: pointer;">
-                <i class="fa-solid fa-right-from-bracket"></i>
-            </button>
-        `;
-
-        // Register logout logic
-        document.getElementById('nav-logout-action').addEventListener('click', () => {
-            localStorage.removeItem('examvault_token');
-            localStorage.removeItem('examvault_user');
-            window.location.href = 'index.html'; 
-        });
-    }
-
-    document.querySelectorAll('[data-guest-only]').forEach((element) => {
-        const isSignedIn = Boolean(currentUser);
-        element.hidden = isSignedIn;
-        element.style.display = isSignedIn ? 'none' : '';
-    });
-    
-    
-    
-    // Core Mobile Hamburger Drawer toggler initialization logic
-    const hamburger = document.getElementById('hamburger');
-    const mobileMenu = document.getElementById('mobile-menu');
-    if (false && hamburger && mobileMenu) {
-        hamburger.addEventListener('click', () => {
-            hamburger.classList.toggle('active');
-            mobileMenu.classList.toggle('open');
-        });
-    }
-
-});
+    return response;
+};
 
     // --- GLOBAL CONFIGURATION ---
-    const token = localStorage.getItem('examvault_token');
-    const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
 
     const toAbsoluteResourceUrl = (url) => {
         const safeUrl = String(url || '').trim();
         if (!safeUrl) return '';
-        
+        if (!/^https?:\/\//i.test(safeUrl) && !safeUrl.startsWith('/')) return '';
+
         let absoluteUrl = safeUrl;
         if (!/^https?:\/\//i.test(safeUrl)) {
             if (/^\/\//.test(safeUrl)) {
@@ -127,11 +93,6 @@ const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
                     return '';
                 }
             }
-        }
-        
-        // Add inline display flag for Cloudinary raw resources to show in iframe instead of download
-        if (absoluteUrl.includes('cloudinary.com') && absoluteUrl.includes('/raw/upload/') && !absoluteUrl.includes('fl_attachment')) {
-            absoluteUrl = absoluteUrl.replace('/raw/upload/', '/raw/upload/fl_attachment:false/');
         }
         
         return absoluteUrl;
@@ -219,186 +180,48 @@ const currentUser = JSON.parse(localStorage.getItem('examvault_user'));
     }
 
     // Dynamic Navigation Content Updates based on Auth State
-    const navActions = document.querySelector('.nav-actions');
-    if (navActions && currentUser) {
-        const signInBtn = navActions.querySelector('a[href="login.html"]');
-        if (signInBtn) {
-            signInBtn.href = "dashboard.html";
-            signInBtn.innerText = "Dashboard";
-            signInBtn.classList.replace('btn-nav-primary', 'btn-outline');
-        }
-    }
-
-    // --- 3.a AI STUDY ASSISTANT WIDGET ---
-    const showAIStudyAssistant = false; // Turn on when the AI assistant is ready for production.
-    const authPageNames = ['login.html', 'signup.html', 'forgot-password.html', 'reset-password.html'];
-    const currentPageName = window.location.pathname.split('/').pop() || 'index.html';
-
-    if (showAIStudyAssistant && !authPageNames.includes(currentPageName)) {
-        initAIStudyAssistant();
-    }
-
-    function initAIStudyAssistant() {
-        if (document.getElementById('ai-assistant-widget')) return;
-
-        const widget = document.createElement('div');
-        widget.id = 'ai-assistant-widget';
-        widget.className = 'ai-assistant-widget';
-        widget.innerHTML = `
-            <button class="ai-assistant-launcher" id="ai-assistant-launcher" type="button" aria-label="Open AI Study Assistant">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span>Ask AI</span>
-            </button>
-            <section class="ai-assistant-panel" id="ai-assistant-panel" aria-label="AI Study Assistant" hidden>
-                <div class="ai-assistant-header">
-                    <div>
-                        <p>ExamVault AI</p>
-                        <h2>Study Assistant</h2>
-                    </div>
-                    <button type="button" class="ai-assistant-close" id="ai-assistant-close" aria-label="Close AI Study Assistant">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="ai-assistant-suggestions" aria-label="Suggested AI prompts">
-                    <button type="button" data-ai-prompt="Make a 7 day revision plan for my target exam.">Revision plan</button>
-                    <button type="button" data-ai-prompt="Explain how I should analyze previous year papers effectively.">Paper strategy</button>
-                    <button type="button" data-ai-prompt="Give me a quick formula and concept checklist for this subject.">Checklist</button>
-                </div>
-                <div class="ai-assistant-messages" id="ai-assistant-messages" aria-live="polite"></div>
-                <form class="ai-assistant-form" id="ai-assistant-form">
-                    <textarea id="ai-assistant-input" rows="2" placeholder="Ask a doubt, request a plan, or paste a question..."></textarea>
-                    <button type="submit" aria-label="Send question to AI"><i class="fa-solid fa-paper-plane"></i></button>
-                </form>
-            </section>
-        `;
-
-        document.body.appendChild(widget);
-
-        const launcher = document.getElementById('ai-assistant-launcher');
-        const panel = document.getElementById('ai-assistant-panel');
-        const closeBtn = document.getElementById('ai-assistant-close');
-        const form = document.getElementById('ai-assistant-form');
-        const input = document.getElementById('ai-assistant-input');
-        const messages = document.getElementById('ai-assistant-messages');
-        const suggestionButtons = widget.querySelectorAll('[data-ai-prompt]');
-        const conversation = [];
-
-        const renderMessage = (role, text) => {
-            const bubble = document.createElement('div');
-            bubble.className = `ai-message ${role}`;
-            bubble.textContent = text;
-            messages.appendChild(bubble);
-            messages.scrollTop = messages.scrollHeight;
-            return bubble;
-        };
-
-        const openPanel = () => {
-            panel.hidden = false;
-            launcher.setAttribute('aria-expanded', 'true');
-
-            if (!messages.dataset.ready) {
-                messages.dataset.ready = 'true';
-                if (token && currentUser) {
-                    renderMessage('assistant', `Hi ${currentUser.fullname || 'there'}, I can help with doubts, study plans, summaries, and paper strategy.`);
-                } else {
-                    renderMessage('assistant', 'Sign in to use the AI Study Assistant. Your questions are sent securely through the ExamVault server.');
-                }
-            }
-
-            setTimeout(() => input?.focus(), 50);
-        };
-
-        const closePanel = () => {
-            panel.hidden = true;
-            launcher.setAttribute('aria-expanded', 'false');
-        };
-
-        const getAIPageContext = () => {
-            const paperTitle = document.getElementById('dynamic-paper-title')?.textContent.trim();
-            const paperDetails = document.getElementById('dynamic-paper-details')?.innerText.replace(/\s+/g, ' ').trim();
-            const paperSearch = document.getElementById('paper-search-input')?.value.trim();
-            const pageHeading = document.querySelector('h1')?.textContent.trim();
-
-            return {
-                pageTitle: document.title,
-                page: currentPageName,
-                heading: pageHeading,
-                paperTitle,
-                paperDetails,
-                paperSearch
-            };
-        };
-
-        const askAI = async (prompt) => {
-            const cleanPrompt = prompt.trim();
-            if (!cleanPrompt) return;
-
-            if (!token || !currentUser) {
-                renderMessage('assistant', 'Please sign in first, then I can help you with AI-powered study support.');
-                window.location.href = 'login.html';
-                return;
-            }
-
-            conversation.push({ role: 'user', text: cleanPrompt });
-            renderMessage('user', cleanPrompt);
-            input.value = '';
-            input.disabled = true;
-            const submitBtn = form.querySelector('button');
-            submitBtn.disabled = true;
-            const thinkingBubble = renderMessage('assistant', 'Thinking...');
-
-            try {
-                const res = await fetch(`${API_BASE}/ai/study-assistant`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        message: cleanPrompt,
-                        pageContext: getAIPageContext(),
-                        history: conversation.slice(-6)
-                    })
-                });
-
-                const data = await res.json();
-
-                if (!res.ok || !data.success) {
-                    throw new Error(data.message || 'AI could not answer right now.');
-                }
-
-                conversation.push({ role: 'assistant', text: data.answer });
-                thinkingBubble.textContent = data.answer;
-            } catch (err) {
-                thinkingBubble.textContent = err.message || 'AI assistant is unavailable right now.';
-            } finally {
-                input.disabled = false;
-                submitBtn.disabled = false;
-                input.focus();
-            }
-        };
-
-        launcher.addEventListener('click', () => {
-            if (panel.hidden) {
-                openPanel();
+    const renderNavigation = (user) => {
+        const profileArea = document.getElementById('nav-profile-subsystem');
+        if (profileArea) {
+            if (!user) {
+                profileArea.innerHTML = '<a href="login.html" class="btn-nav-primary" id="nav-auth-btn">Sign In</a>';
             } else {
-                closePanel();
+                profileArea.innerHTML = `
+                    ${isAdmin(user) ? '<a href="admin.html" id="nav-admin-btn" aria-label="Open Admin Studio"><span class="admin-control-icon"><i class="fa-solid fa-shield-halved"></i></span><span class="admin-control-label">Admin Studio</span><i class="fa-solid fa-arrow-up-right-from-square admin-control-arrow"></i></a>' : ''}
+                    <button type="button" class="btn-nav-primary" id="nav-logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+                `;
+                document.getElementById('nav-logout-btn')?.addEventListener('click', logout);
             }
-        });
+        }
 
-        closeBtn.addEventListener('click', closePanel);
-
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            askAI(input.value);
-        });
-
-        suggestionButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                openPanel();
-                askAI(button.dataset.aiPrompt || '');
+        document.querySelectorAll('a[href="dashboard.html"]').forEach((link) => link.remove());
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenu && user && !mobileMenu.querySelector('#mobile-logout-btn')) {
+            const logoutLink = document.createElement('a');
+            logoutLink.id = 'mobile-logout-btn';
+            logoutLink.href = '#';
+            logoutLink.className = 'nav-link';
+            logoutLink.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Logout';
+            logoutLink.addEventListener('click', (event) => {
+                event.preventDefault();
+                logout();
             });
-        });
+            mobileMenu.appendChild(logoutLink);
+        }
+    };
+
+    renderNavigation(currentUser);
+
+    if (token) {
+        fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() })
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok || !data.success || !data.user) throw new Error('Session refresh failed.');
+                currentUser = data.user;
+                localStorage.setItem('examvault_user', JSON.stringify(currentUser));
+                renderNavigation(currentUser);
+            })
+            .catch(() => {});
     }
 
     // --- 4. AUTHENTICATION CONTROLS (LOGIN / SIGNUP) ---
@@ -532,6 +355,7 @@ const signupForm = document.getElementById('signup-form');
 const otpModal = document.getElementById('otp-modal');
 const otpInput = document.getElementById('otp-input');
 const verifyOtpBtn = document.getElementById('verify-otp-btn');
+const resendOtpBtn = document.getElementById('resend-otp-btn');
 const otpEmailDisplay = document.getElementById('otp-email-display');
 
 let pendingEmail = "";
@@ -641,6 +465,26 @@ if (verifyOtpBtn) {
             verifyOtpBtn.disabled = false;
         }
     });
+
+    if (resendOtpBtn) {
+        resendOtpBtn.addEventListener('click', async () => {
+            resendOtpBtn.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE}/auth/resend-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: pendingEmail })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Unable to resend code.');
+                alert(data.message);
+            } catch (error) {
+                alert(error.message || 'Unable to resend code.');
+            } finally {
+                setTimeout(() => { resendOtpBtn.disabled = false; }, 60000);
+            }
+        });
+    }
 }
 
     // --- 5. SOLUTIONS & INTERACTION API BAR ---
@@ -688,7 +532,7 @@ if (verifyOtpBtn) {
         try {
             const res = await fetch(`${API_BASE}/papers/${currentPaperId}/${reaction}`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: getAuthHeaders()
             });
             const data = await res.json();
 
@@ -785,7 +629,7 @@ if (verifyOtpBtn) {
                     throw new Error('Paper ID was not found in the page URL.');
                 }
 
-                const res = await fetch(`${API_BASE}/papers/${currentPaperId}`);
+                const res = await fetch(`${API_BASE}/papers/${currentPaperId}`, { headers: getAuthHeaders() });
                 const data = await res.json();
 
                 if (!res.ok || !data || !data.success || !data.data) {
@@ -793,13 +637,10 @@ if (verifyOtpBtn) {
                 }
 
                 if (data && data.success && data.data) {
-                    const likes = Array.isArray(data.data.likes) ? data.data.likes : [];
-                    const dislikes = Array.isArray(data.data.dislikes) ? data.data.dislikes : [];
-                    const currentUserId = currentUser?.id || currentUser?._id;
-                    const isLiked = currentUserId ? likes.some((userId) => String(userId) === String(currentUserId)) : false;
-                    const isDisliked = currentUserId ? dislikes.some((userId) => String(userId) === String(currentUserId)) : false;
+                    const isLiked = Boolean(data.data.isLiked);
+                    const isDisliked = Boolean(data.data.isDisliked);
 
-                    updateLikeButton(isLiked, likes.length);
+                    updateLikeButton(isLiked, Number(data.data.likesCount) || 0);
                     updateDislikeButton(isDisliked);
 
                     // 1. Dynamic Title
@@ -821,19 +662,19 @@ if (verifyOtpBtn) {
                         detailsContainer.innerHTML = `
                             <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:.5rem;">
                                 <span style="color:var(--text-muted);">Exam:</span>
-                                <strong>${data.data.examType}</strong>
+                                <strong>${escapeHTML(data.data.examType || 'N/A')}</strong>
                             </div>
                             <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:.5rem;">
                                 <span style="color:var(--text-muted);">Year:</span>
-                                <strong>${data.data.year}</strong>
+                                <strong>${escapeHTML(data.data.year || 'N/A')}</strong>
                             </div>
                             <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:.5rem;">
                                 <span style="color:var(--text-muted);">Subject:</span>
-                                <strong>${data.data.subject || 'N/A'}</strong>
+                                <strong>${escapeHTML(data.data.subject || 'N/A')}</strong>
                             </div>
                             <div style="display:flex;justify-content:space-between;">
                                 <span style="color:var(--text-muted);">Difficulty:</span>
-                                <strong style="color:#fdcb6e;">${data.data.difficulty || 'Moderate'}</strong>
+                                <strong style="color:#fdcb6e;">${escapeHTML(data.data.difficulty || 'Moderate')}</strong>
                             </div>
                         `;
                     }
@@ -919,7 +760,7 @@ if (verifyOtpBtn) {
     const commentInputArea = document.querySelector('.comment-input-area');
     const commentTextarea = document.getElementById('comment-body');
     const commentAvatar = document.querySelector('.comment-avatar');
-    const isAdminUser = Boolean(currentUser && currentUser.role === 'admin');
+    const isAdminUser = isAdmin(currentUser);
 
     // CONDITIONAL UI: Lock comments for guests
     if (commentInputArea && !currentUser) {
@@ -933,72 +774,22 @@ if (verifyOtpBtn) {
         commentAvatar.textContent = currentUser.fullname.charAt(0).toUpperCase();
     }
     
-    // 🚨 ANTI-XSS FUNCTION: Yeh function har hacker ke code ko normal text bana dega
-    const escapeHTML = (value) => {
-        if (!value) return '';
-        return String(value).replace(/[&<>'"]/g,
-            tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag)
-        );
-    };
-
     const formatCommentDate = (value) => {
         const date = value ? new Date(value) : new Date();
         if (Number.isNaN(date.getTime())) return '';
         return date.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    async function loadComments() {
+
+
+    let commentPage = 0;
+    let commentPages = 0;
+    const loadComments = async function(append = false) {
         if (!commentList) return;
 
         try {
-            const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments`);
-            const data = await res.json();
-
-            if (data.success && data.data) {
-                const comments = data.data || [];
-                commentList.innerHTML = '';
-                if (commentCount) commentCount.innerText = comments.length;
-
-                if (comments.length === 0) {
-                    commentList.innerHTML = '<div style="color: gray;">No comments yet. Be the first to ask a doubt!</div>';
-                    return;
-                }
-
-                comments.forEach(comment => {
-                    const date = new Date(comment.createdAt).toLocaleDateString();
-                    
-                    // 🚨 FILTER IN ACTION: HTML print hone se pehle text saaf ho raha hai
-                    const safeName = escapeHTML(comment.userName);
-                    const safeText = escapeHTML(comment.text);
-
-                    // Ab yahan comment.text ki jagah safeText use karenge
-                    commentList.insertAdjacentHTML('beforeend', `
-                        <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; border-left: 3px solid var(--primary);">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <strong style="color: var(--primary);">${safeName || 'Student'}</strong>
-                                <span style="font-size: 0.8rem; color: var(--text-muted);">${date}</span>
-                            </div>
-                            <div style="color: var(--text);">${safeText}</div>
-                        </div>
-                    `);
-                });
-            }
-        } catch (err) {
-            console.error('Error fetching data logs:', err);
-        }
-    }
-
-    loadComments = async function() {
-        if (!commentList) return;
-
-        try {
-            const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments`);
+            const requestedPage = append ? commentPage + 1 : 1;
+            const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments?page=${requestedPage}&limit=20`);
             const data = await res.json();
 
             if (!data.success) {
@@ -1006,10 +797,12 @@ if (verifyOtpBtn) {
             }
 
             const comments = data.data || [];
-            commentList.innerHTML = '';
-            if (commentCount) commentCount.innerText = comments.length;
+            if (!append) commentList.innerHTML = '';
+            commentPage = data.page || requestedPage;
+            commentPages = data.pages || 0;
+            if (commentCount) commentCount.innerText = data.count || 0;
 
-            if (comments.length === 0) {
+            if (comments.length === 0 && !append) {
                 commentList.innerHTML = '<div style="color: gray;">No comments yet. Be the first to ask a doubt!</div>';
                 return;
             }
@@ -1057,6 +850,16 @@ if (verifyOtpBtn) {
                     </div>
                 `);
             });
+            commentList.querySelector('[data-load-more-comments]')?.remove();
+            if (commentPage < commentPages) {
+                const loadMore = document.createElement('button');
+                loadMore.type = 'button';
+                loadMore.dataset.loadMoreComments = 'true';
+                loadMore.className = 'btn-outline';
+                loadMore.textContent = 'Load more comments';
+                loadMore.addEventListener('click', () => loadComments(true));
+                commentList.appendChild(loadMore);
+            }
         } catch (err) {
             console.error('Error loading comments:', err);
             commentList.innerHTML = '<div style="color: #ff4a4a;">Comments could not be loaded right now.</div>';
@@ -1082,10 +885,7 @@ if (verifyOtpBtn) {
             try {
                 const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ text: commentText })
                 });
                 const data = await res.json();
@@ -1139,7 +939,7 @@ if (verifyOtpBtn) {
                 try {
                     const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments/${commentId}`, {
                         method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        headers: getAuthHeaders()
                     });
                     const data = await res.json();
 
@@ -1177,10 +977,7 @@ if (verifyOtpBtn) {
             try {
                 const res = await fetch(`${API_BASE}/papers/${currentPaperId}/comments/${commentId}/replies`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ text: replyText })
                 });
                 const data = await res.json();
@@ -1215,6 +1012,23 @@ if (verifyOtpBtn) {
     let selectedYear = 'all';
     let selectedSearch = '';
     let paperSearchTimer;
+    let paperPage = 1;
+    let paperPages = 1;
+    let loadMorePapersButton;
+
+    // Bug 21 fix: Pre-select exam from URL query param (e.g. papers.html?exam=JEE+Main)
+    const pageUrlParams = new URLSearchParams(window.location.search);
+    const examFromUrl = pageUrlParams.get('exam');
+    if (examFromUrl) {
+        selectedExam = examFromUrl;
+        // Activate the matching filter button if present
+        examButtons.forEach(btn => {
+            if ((btn.getAttribute('data-exam') || '') === examFromUrl) {
+                examButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        });
+    }
 
     const updatePaperSearchClearButton = () => {
         if (clearPaperSearchButton) {
@@ -1223,6 +1037,14 @@ if (verifyOtpBtn) {
     };
 
     if (papersGrid) {
+        loadMorePapersButton = document.createElement('button');
+        loadMorePapersButton.type = 'button';
+        loadMorePapersButton.className = 'btn-outline';
+        loadMorePapersButton.textContent = 'Load more papers';
+        loadMorePapersButton.hidden = true;
+        papersGrid.insertAdjacentElement('afterend', loadMorePapersButton);
+        loadMorePapersButton.addEventListener('click', () => fetchAndRenderPapers(selectedExam, selectedYear, selectedSearch, true));
+
         // Initial clean filter invocation execution
         fetchAndRenderPapers(selectedExam, selectedYear, selectedSearch);
 
@@ -1282,23 +1104,28 @@ if (verifyOtpBtn) {
         }
     }
 
-    async function fetchAndRenderPapers(examType = 'all', year = 'all', search = '') {
+    async function fetchAndRenderPapers(examType = 'all', year = 'all', search = '', append = false) {
         if (!papersGrid) return;
 
         try {
+            if (!append) paperPage = 1;
             const queryParams = new URLSearchParams();
             if (examType && examType !== 'all') queryParams.set('examType', examType);
             if (year && year !== 'all') queryParams.set('year', year);
             if (search) queryParams.set('search', search);
+            queryParams.set('page', String(append ? paperPage + 1 : paperPage));
+            queryParams.set('limit', '20');
             const url = `${API_BASE}/papers?${queryParams.toString()}`;
 
-            papersGrid.innerHTML = '<div class="loader-spinner" style="padding:2rem; text-align:center; color:var(--text-muted); width:100%;">Opening Secure Repository Vault...</div>';
+            if (!append) papersGrid.innerHTML = '<div class="loader-spinner" style="padding:2rem; text-align:center; color:var(--text-muted); width:100%;">Opening Secure Repository Vault...</div>';
 
             const res = await fetch(url);
             const responseData = await res.json();
 
             if (responseData.success && responseData.data.length > 0) {
-                papersGrid.innerHTML = '';
+                if (!append) papersGrid.innerHTML = '';
+                paperPage = responseData.page;
+                paperPages = responseData.pages;
 
                 responseData.data.forEach(paper => {
                     const downloads = Number(paper.downloads) || 0;
@@ -1335,7 +1162,7 @@ const cardHTML = `
                 <i class="fa-solid fa-eye"></i> View Paper
             </a>
 
-            <a href="${safePaperPdfUrl}" download class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
+            <a href="${safePaperPdfUrl}" data-download-paper-id="${safePaperId}" class="btn-sm btn-outline" style="padding: 0.5rem 0.8rem; border: 1px solid var(--primary); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 0.85rem;">
                 <i class="fa-solid fa-download"></i> Download
             </a>
             
@@ -1349,13 +1176,14 @@ const cardHTML = `
 `;
                     papersGrid.insertAdjacentHTML('beforeend', cardHTML);
                 });
-            } else {
+            } else if (!append) {
                 papersGrid.innerHTML = `
                     <div class="no-data-msg" style="padding:3rem; text-align:center; color:#888; width:100%;">
                         <i class="fa-solid fa-folder-open" style="font-size:2.5rem; margin-bottom:1rem; display:block; color:var(--primary);"></i>
                         No question papers match your selected search filter.
                     </div>`;
             }
+            if (loadMorePapersButton) loadMorePapersButton.hidden = paperPage >= paperPages;
         } catch (err) {
             console.error('Error fetching data arrays:', err);
             papersGrid.innerHTML = '<div class="error-msg" style="width:100%; text-align:center; color:#ff4a4a;">Failed to connect with remote repository cluster.</div>';
@@ -1364,6 +1192,19 @@ const cardHTML = `
 
     if (papersGrid) {
         papersGrid.addEventListener('click', async (event) => {
+            const downloadButton = event.target.closest('[data-download-paper-id]');
+            if (downloadButton) {
+                event.preventDefault();
+                try {
+                    const response = await fetch(`${API_BASE}/papers/${encodeURIComponent(downloadButton.dataset.downloadPaperId)}/download`, { method: 'POST' });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) throw new Error(data.message || 'Download is unavailable.');
+                    window.location.assign(toAbsoluteResourceUrl(data.url));
+                } catch (error) {
+                    showToast('Download is unavailable right now.', 'error');
+                }
+                return;
+            }
             const deleteButton = event.target.closest('[data-delete-paper-id]');
             if (!deleteButton) return;
 
@@ -1393,7 +1234,7 @@ const cardHTML = `
             try {
                 const res = await fetch(`${API_BASE}/papers/${encodeURIComponent(paperId)}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: getAuthHeaders()
                 });
                 const data = await res.json();
 
@@ -1457,28 +1298,29 @@ const cardHTML = `
             const profileDetailsStatus = document.getElementById('profile-details-status');
             const clearProfileDetails = document.getElementById('clear-profile-details');
             const profileLogoutBtn = document.getElementById('profile-logout-btn');
+            const editableProfileFields = {
+                phone: document.getElementById('profile-phone'),
+                institution: document.getElementById('profile-institution'),
+                targetExam: document.getElementById('profile-target-exam'),
+                city: document.getElementById('profile-city'),
+                studyTime: document.getElementById('profile-study-time')
+            };
 
             const userName = currentUser.fullname || 'Student';
             const userEmail = currentUser.email || '';
-            const userRole = currentUser.role || 'user';
+            const userRole = getCurrentUserRole(currentUser);
             const profileKey = currentUser.id || currentUser._id || userEmail || 'user';
-            const profilePhotoKey = `examvault_profile_photo_${profileKey}`;
-            const profileDetailsKey = `examvault_profile_details_${profileKey}`;
-            const profileSeenKey = `examvault_profile_seen_${profileKey}`;
             const accountId = String(profileKey);
 
             const formatRole = (role) => role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
             const formatProfileDate = (value) => {
-                const date = value ? new Date(value) : new Date();
+                if (!value) return '—';
+                const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return 'Today';
                 return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             };
 
-            let memberSince = currentUser.createdAt || localStorage.getItem(profileSeenKey);
-            if (!memberSince) {
-                memberSince = new Date().toISOString();
-                localStorage.setItem(profileSeenKey, memberSince);
-            }
+            const memberSince = currentUser.createdAt || '';
 
             if (dashName) dashName.textContent = userName;
             if (dashEmail) dashEmail.textContent = userEmail;
@@ -1508,72 +1350,96 @@ const cardHTML = `
                 }
             };
 
-            applyProfilePhoto(localStorage.getItem(profilePhotoKey));
+            applyProfilePhoto(currentUser?.photoUrl || currentUser?.profilePhoto || '');
+
+            fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success || !data.user) return;
+                    currentUser = data.user;
+                    localStorage.setItem('examvault_user', JSON.stringify(currentUser));
+                    if (profileMemberSince && currentUser.createdAt) {
+                        profileMemberSince.textContent = formatProfileDate(currentUser.createdAt);
+                    }
+                    applyProfilePhoto(currentUser.photoUrl || currentUser.profilePhoto || '');
+                    if (currentUser.fullname && profileFullname) {
+                        profileFullname.value = currentUser.fullname;
+                    }
+                })
+                .catch((error) => console.error('Profile loading failed:', error));
 
             if (profilePhotoBtn && profilePhotoInput) {
                 profilePhotoBtn.addEventListener('click', () => profilePhotoInput.click());
             }
 
             if (profilePhotoInput) {
-                profilePhotoInput.addEventListener('change', () => {
+                profilePhotoInput.addEventListener('change', async () => {
                     const file = profilePhotoInput.files && profilePhotoInput.files[0];
                     if (!file) return;
 
                     if (!file.type.startsWith('image/')) {
-                        alert('Please choose an image file.');
+                        alert('Please choose an image file (JPG, PNG, or WebP).');
                         profilePhotoInput.value = '';
                         return;
                     }
 
-                    if (file.size > 1500000) {
-                        alert('Please choose an image smaller than 1.5 MB.');
+                    if (file.size > 3 * 1024 * 1024) {
+                        alert('Please choose an image smaller than 3 MB.');
                         profilePhotoInput.value = '';
                         return;
                     }
 
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        try {
-                            localStorage.setItem(profilePhotoKey, reader.result);
-                            applyProfilePhoto(reader.result);
-                        } catch (err) {
-                            console.error('Profile photo save failed:', err);
-                            alert('Could not save the photo in this browser. Try a smaller image.');
+                    const formData = new FormData();
+                    formData.append('photo', file);
+
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/profile-photo`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: formData
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Photo upload failed.');
+                        const newPhotoUrl = data.photoUrl || (data.data && data.data.photoUrl) || '';
+                        applyProfilePhoto(newPhotoUrl);
+                        if (currentUser) {
+                            currentUser.photoUrl = newPhotoUrl;
+                            currentUser.profilePhoto = newPhotoUrl;
+                            localStorage.setItem('examvault_user', JSON.stringify(currentUser));
                         }
-                    };
-                    reader.readAsDataURL(file);
-                    profilePhotoInput.value = '';
+                    } catch (err) {
+                        console.error('Profile photo save failed:', err);
+                        alert(err.message || 'Could not save the photo.');
+                    } finally {
+                        profilePhotoInput.value = '';
+                    }
                 });
             }
 
             if (profilePhotoRemove) {
-                profilePhotoRemove.addEventListener('click', () => {
-                    localStorage.removeItem(profilePhotoKey);
-                    applyProfilePhoto('');
+                profilePhotoRemove.addEventListener('click', async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/profile-photo`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders()
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Photo removal failed.');
+                        applyProfilePhoto('');
+                        if (currentUser) {
+                            currentUser.photoUrl = '';
+                            currentUser.profilePhoto = '';
+                            localStorage.setItem('examvault_user', JSON.stringify(currentUser));
+                        }
+                    } catch (err) {
+                        console.error('Profile photo removal failed:', err);
+                        alert(err.message || 'Could not remove the photo.');
+                    }
                 });
             }
 
-            const editableProfileFields = {
-                phone: document.getElementById('profile-phone'),
-                institution: document.getElementById('profile-institution'),
-                targetExam: document.getElementById('profile-target-exam'),
-                city: document.getElementById('profile-city'),
-                studyTime: document.getElementById('profile-study-time')
-            };
-
-            let savedProfileDetails = {};
-            try {
-                savedProfileDetails = JSON.parse(localStorage.getItem(profileDetailsKey) || '{}') || {};
-            } catch (err) {
-                savedProfileDetails = {};
-            }
-
-            Object.entries(editableProfileFields).forEach(([key, field]) => {
-                if (field) field.value = savedProfileDetails[key] || '';
-            });
-
             if (profileDetailsForm) {
-                profileDetailsForm.addEventListener('submit', (e) => {
+                profileDetailsForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const nextDetails = {};
 
@@ -1581,24 +1447,44 @@ const cardHTML = `
                         nextDetails[key] = field ? field.value.trim() : '';
                     });
 
-                    localStorage.setItem(profileDetailsKey, JSON.stringify(nextDetails));
-
-                    if (profileDetailsStatus) {
-                        profileDetailsStatus.textContent = 'Saved';
-                        setTimeout(() => {
-                            profileDetailsStatus.textContent = '';
-                        }, 1800);
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/profile`, {
+                            method: 'PATCH',
+                            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                            body: JSON.stringify({ profileDetails: nextDetails })
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Unable to save profile details.');
+                        if (profileDetailsStatus) profileDetailsStatus.textContent = 'Saved';
+                    } catch (error) {
+                        console.error('Profile details save failed:', error);
+                        if (profileDetailsStatus) profileDetailsStatus.textContent = error.message || 'Unable to save.';
                     }
+                    setTimeout(() => {
+                        if (profileDetailsStatus) profileDetailsStatus.textContent = '';
+                    }, 3000);
                 });
             }
 
             if (clearProfileDetails) {
-                clearProfileDetails.addEventListener('click', () => {
-                    localStorage.removeItem(profileDetailsKey);
-                    Object.values(editableProfileFields).forEach((field) => {
-                        if (field) field.value = '';
-                    });
-                    if (profileDetailsStatus) profileDetailsStatus.textContent = 'Cleared';
+                clearProfileDetails.addEventListener('click', async () => {
+                    const emptyDetails = Object.fromEntries(Object.keys(editableProfileFields).map(key => [key, '']));
+                    try {
+                        const response = await fetch(`${API_BASE}/auth/profile`, {
+                            method: 'PATCH',
+                            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                            body: JSON.stringify({ profileDetails: emptyDetails })
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Unable to clear profile details.');
+                        Object.values(editableProfileFields).forEach((field) => {
+                            if (field) field.value = '';
+                        });
+                        if (profileDetailsStatus) profileDetailsStatus.textContent = 'Cleared';
+                    } catch (error) {
+                        console.error('Profile details clearing failed:', error);
+                        if (profileDetailsStatus) profileDetailsStatus.textContent = error.message || 'Unable to clear.';
+                    }
                 });
             }
 
@@ -1615,7 +1501,7 @@ const cardHTML = `
 
             if (savedPapersCount || savedPapersList) {
                 fetch(`${API_BASE}/auth/saved-papers`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: getAuthHeaders()
                 })
                     .then(async (res) => {
                         const data = await res.json();
@@ -1673,23 +1559,18 @@ const cardHTML = `
                 // Send real data to our new MongoDB endpoint
                 const res = await fetch(`${API_BASE}/messages`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userName: currentUser.fullname, // Pulled from local session
-                        userEmail: currentUser.email,
-                        subject: subject,
-                        body: body
-                    })
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ subject, body })
                 });
                 
                 const data = await res.json();
 
-                if (data.success) {
+                if (res.ok && data.success) {
                     btn.innerHTML = `<i class="fa-solid fa-check-double"></i> Delivered!`;
                     btn.style.background = '#00b894';
                     adminMsgForm.reset();
                 } else {
-                    btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Failed`;
+                    btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${data.message || 'Failed'}`;
                     btn.style.background = '#ff4a4a';
                 }
             } catch (err) {
@@ -1726,107 +1607,621 @@ const cardHTML = `
         });
     });
     // ==========================================
-    // 📁 SYSTEM 12: ADMIN FILE UPLOAD ENGINE
+    // 📁 SYSTEM 12: ADMIN STUDIO CONTROLLER
     // ==========================================
-    const uploadForm = document.getElementById('upload-paper-form');
-    
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const btn = document.getElementById('upload-btn');
-            const originalText = btn.innerHTML;
-            
-            // Show loading state
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Securely...`;
-            btn.disabled = true;
+    const adminTabs = document.querySelectorAll('.admin-tab-btn');
+    const adminPanels = document.querySelectorAll('.admin-tab-panel');
 
-            // FormData automatically captures all inputs and the file!
-            const formData = new FormData(uploadForm);
+    if (adminTabs.length > 0) {
+        // Tab switching
+        adminTabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetTab = btn.dataset.tab;
+                adminTabs.forEach(b => b.classList.remove('active'));
+                adminPanels.forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                const activePanel = document.getElementById(`tab-${targetTab}`);
+                if (activePanel) activePanel.classList.add('active');
 
-             try {
-                // FIX: Sending the JWT token in headers for authorization
-                const res = await fetch(`${API_BASE}/papers/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('examvault_token')}`
-                    },
-                    // Note: NO 'Content-Type' header here, FormData handles it automatically
-                    body: formData 
-                });
-                
-                const data = await res.json();
+                // Trigger appropriate loader
+                if (targetTab === 'stats') loadAdminStats();
+                else if (targetTab === 'papers') loadAdminPapers();
+                else if (targetTab === 'users') loadAdminUsers();
+                else if (targetTab === 'messages') fetchAdminMessages();
+                else if (targetTab === 'comments') loadAdminComments();
+            });
+        });
 
-                if (data.success) {
-                    btn.innerHTML = `<i class="fa-solid fa-circle-check"></i> Upload Successful!`;
-                    btn.style.background = '#00b894';
-                    uploadForm.reset(); // Clear the form
-                } else {
-                    alert(data.message || 'Upload failed.');
-                    btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Try Again`;
-                    btn.style.background = '#ff4a4a';
+        // 1. STATS LOADER
+        async function loadAdminStats() {
+            try {
+                const res = await fetch(`${API_BASE}/admin/stats`, { headers: getAuthHeaders() });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const d = json.data;
+                    const sp = document.getElementById('stat-papers');
+                    const su = document.getElementById('stat-users');
+                    const sv = document.getElementById('stat-views');
+                    const sd = document.getElementById('stat-downloads');
+                    const sc = document.getElementById('stat-comments');
+                    const sf = document.getElementById('stat-failed');
+                    if (sp) sp.textContent = Number(d.papers || 0).toLocaleString();
+                    if (su) su.textContent = Number(d.users || 0).toLocaleString();
+                    if (sv) sv.textContent = Number(d.views || 0).toLocaleString();
+                    if (sd) sd.textContent = Number(d.downloads || 0).toLocaleString();
+                    if (sc) sc.textContent = Number(d.comments || 0).toLocaleString();
+                    if (sf) sf.textContent = Number(d.failedIndexings || 0).toLocaleString();
                 }
             } catch (err) {
-                console.error('Upload Error:', err);
-                btn.innerHTML = `Error. Check Console.`;
+                console.error('Failed to load admin stats:', err);
             }
+        }
 
-            // Reset button UI after 3 seconds
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.style.background = '';
-                btn.disabled = false;
-            }, 3000);
-        });
-    }
-    // ==========================================
-    // 📬 SYSTEM 13: ADMIN INBOX ENGINE
-    // ==========================================
-    const adminMessagesGrid = document.getElementById('admin-messages-grid');
+        // 2. PAPERS TAB & ACTIONS
+        const toggleUploadBtn = document.getElementById('toggle-upload-btn');
+        const uploadPanel = document.getElementById('upload-panel');
+        if (toggleUploadBtn && uploadPanel) {
+            toggleUploadBtn.addEventListener('click', () => {
+                const isHidden = uploadPanel.style.display === 'none' || !uploadPanel.style.display;
+                uploadPanel.style.display = isHidden ? 'block' : 'none';
+                toggleUploadBtn.innerHTML = isHidden 
+                    ? '<i class="fa-solid fa-xmark"></i> Close Upload Panel'
+                    : '<i class="fa-solid fa-cloud-arrow-up"></i> Upload New Paper';
+            });
+        }
 
-    if (adminMessagesGrid) {
-        async function fetchAdminMessages() {
+        const uploadForm = document.getElementById('upload-paper-form');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('upload-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading to Vault...`;
+                btn.disabled = true;
+
+                const formData = new FormData(uploadForm);
+                try {
+                    const res = await fetch(`${API_BASE}/papers/upload`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        btn.innerHTML = `<i class="fa-solid fa-circle-check"></i> Upload Successful!`;
+                        btn.style.background = '#059669';
+                        uploadForm.reset();
+                        setTimeout(() => {
+                            if (uploadPanel) uploadPanel.style.display = 'none';
+                            if (toggleUploadBtn) toggleUploadBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload New Paper';
+                        }, 1200);
+                        loadAdminPapers();
+                        loadAdminStats();
+                    } else {
+                        alert(data.message || 'Upload failed.');
+                        btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Upload Failed`;
+                        btn.style.background = '#ef4444';
+                    }
+                } catch (err) {
+                    console.error('Upload Error:', err);
+                    alert(err.message || 'Network error during upload.');
+                    btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Upload Failed`;
+                    btn.style.background = '#ef4444';
+                }
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.background = '';
+                    btn.disabled = false;
+                }, 3000);
+            });
+        }
+
+        let adminPapersList = [];
+        async function loadAdminPapers() {
+            const tbody = document.getElementById('admin-papers-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading papers...</td></tr>';
             try {
-                const res = await fetch(`${API_BASE}/messages`);
-                const data = await res.json();
+                const res = await fetch(`${API_BASE}/papers?limit=100`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    adminPapersList = json.data;
+                    if (adminPapersList.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No papers found in vault.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = adminPapersList.map(p => {
+                        const status = (p.ragStatus || 'none').toLowerCase();
+                        let badgeIcon = 'fa-circle-question';
+                        if (status === 'ready') badgeIcon = 'fa-circle-check';
+                        else if (status === 'pending') badgeIcon = 'fa-spinner fa-spin';
+                        else if (status === 'failed') badgeIcon = 'fa-circle-xmark';
 
-                if (data.success && data.data.length > 0) {
-                    adminMessagesGrid.innerHTML = ''; // Clear loader
-
-                    data.data.forEach(msg => {
-                        const date = new Date(msg.createdAt).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        });
-
-                        const msgHTML = `
-                            <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--primary);">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <strong>${msg.subject}</strong>
-                                    <span style="font-size: 0.85rem; color: var(--text-muted);">${date}</span>
-                                </div>
-                                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-                                    From: ${msg.userName} (${msg.userEmail})
-                                </div>
-                                <p style="margin: 0 0 1rem 0; font-size: 0.95rem;">${msg.body}</p>
-                                
-                                <a href="mailto:${msg.userEmail}?subject=Re: ${msg.subject}" class="btn-sm btn-outline" style="text-decoration: none; display: inline-block; padding: 0.5rem 1rem; font-size: 0.85rem;">
-                                    <i class="fa-solid fa-reply"></i> Reply via Email
-                                </a>
-                            </div>
+                        return `
+                            <tr data-paper-id="${p._id}">
+                                <td>
+                                    <strong>${escapeHTML(p.title)}</strong>
+                                    ${p.difficulty ? `<div style="font-size:0.75rem; color: var(--text-muted);">${escapeHTML(p.difficulty)}</div>` : ''}
+                                </td>
+                                <td>${escapeHTML(p.examType)}</td>
+                                <td>${p.year}</td>
+                                <td>${escapeHTML(p.subject || '-')}</td>
+                                <td>
+                                    <span class="status-badge ${status}">
+                                        <i class="fa-solid ${badgeIcon}"></i> ${status}
+                                    </span>
+                                </td>
+                                <td style="text-align: right; white-space: nowrap;">
+                                    <button type="button" class="btn-table btn-edit-paper" data-id="${p._id}" title="Edit Details">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </button>
+                                    <button type="button" class="btn-table btn-reindex-paper" data-id="${p._id}" title="Re-index">
+                                        <i class="fa-solid fa-arrows-rotate"></i> Re-index
+                                    </button>
+                                    <button type="button" class="btn-table btn-replace-solution" data-id="${p._id}" data-title="${escapeHTML(p.title)}" title="Replace Solution PDF">
+                                        <i class="fa-solid fa-file-arrow-up"></i> Solution
+                                    </button>
+                                    <button type="button" class="btn-table danger btn-delete-paper" data-id="${p._id}" title="Delete Paper">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
                         `;
-                        adminMessagesGrid.insertAdjacentHTML('beforeend', msgHTML);
+                    }).join('');
+
+                    tbody.querySelectorAll('.btn-edit-paper').forEach(btn => {
+                        btn.addEventListener('click', () => openEditPaperModal(btn.dataset.id));
+                    });
+                    tbody.querySelectorAll('.btn-reindex-paper').forEach(btn => {
+                        btn.addEventListener('click', () => handleReindexPaper(btn.dataset.id, btn));
+                    });
+                    tbody.querySelectorAll('.btn-replace-solution').forEach(btn => {
+                        btn.addEventListener('click', () => openReplaceSolutionModal(btn.dataset.id, btn.dataset.title));
+                    });
+                    tbody.querySelectorAll('.btn-delete-paper').forEach(btn => {
+                        btn.addEventListener('click', () => handleDeletePaper(btn.dataset.id));
                     });
                 } else {
-                    adminMessagesGrid.innerHTML = '<div style="color: var(--text-muted); text-align: center;">No messages from students yet.</div>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #ef4444;">Failed to load papers.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Error loading papers:', err);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #ef4444;">Error loading papers.</td></tr>';
+            }
+        }
+
+        // EDIT PAPER MODAL
+        const editModal = document.getElementById('edit-paper-modal');
+        const editForm = document.getElementById('edit-paper-form');
+        function openEditPaperModal(paperId) {
+            const paper = adminPapersList.find(p => p._id === paperId);
+            if (!paper || !editModal) return;
+            document.getElementById('edit-paper-id').value = paper._id;
+            document.getElementById('edit-paper-title').value = paper.title || '';
+            document.getElementById('edit-paper-exam').value = paper.examType || 'JEE Main';
+            document.getElementById('edit-paper-year').value = paper.year || 2026;
+            document.getElementById('edit-paper-subject').value = paper.subject || '';
+            document.getElementById('edit-paper-difficulty').value = paper.difficulty || 'Moderate';
+            document.getElementById('edit-paper-video').value = paper.videoUrl || '';
+            document.getElementById('edit-paper-notes').value = paper.adminNotes || '';
+            editModal.classList.add('open');
+        }
+        function closeEditPaperModal() {
+            if (editModal) editModal.classList.remove('open');
+        }
+        document.getElementById('close-edit-modal-btn')?.addEventListener('click', closeEditPaperModal);
+        document.getElementById('cancel-edit-btn')?.addEventListener('click', closeEditPaperModal);
+
+        if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const paperId = document.getElementById('edit-paper-id').value;
+                const payload = {
+                    title: document.getElementById('edit-paper-title').value.trim(),
+                    examType: document.getElementById('edit-paper-exam').value,
+                    year: Number(document.getElementById('edit-paper-year').value),
+                    subject: document.getElementById('edit-paper-subject').value.trim(),
+                    difficulty: document.getElementById('edit-paper-difficulty').value,
+                    videoUrl: document.getElementById('edit-paper-video').value.trim(),
+                    adminNotes: document.getElementById('edit-paper-notes').value.trim()
+                };
+                try {
+                    const res = await fetch(`${API_BASE}/papers/${paperId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...getAuthHeaders()
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await res.json();
+                    if (res.ok && json.success) {
+                        closeEditPaperModal();
+                        loadAdminPapers();
+                    } else {
+                        alert(json.message || 'Failed to update paper details.');
+                    }
+                } catch (err) {
+                    console.error('Update paper error:', err);
+                    alert('Network error while updating paper.');
+                }
+            });
+        }
+
+        // RE-INDEX ACTION
+        async function handleReindexPaper(paperId, btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/papers/${paperId}/reindex`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    alert('Re-indexing initiated in the background.');
+                    loadAdminPapers();
+                    loadAdminStats();
+                } else {
+                    alert(json.message || 'Failed to start re-indexing.');
+                }
+            } catch (err) {
+                console.error('Re-index error:', err);
+                alert('Network error while requesting re-index.');
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+
+        // REPLACE SOLUTION MODAL
+        const replaceModal = document.getElementById('replace-solution-modal');
+        const replaceForm = document.getElementById('replace-solution-form');
+        function openReplaceSolutionModal(paperId, paperTitle) {
+            if (!replaceModal) return;
+            document.getElementById('replace-solution-paper-id').value = paperId;
+            const titleElem = document.getElementById('replace-solution-paper-title');
+            if (titleElem) titleElem.textContent = `Paper: ${paperTitle || paperId}`;
+            document.getElementById('replace-solution-file').value = '';
+            replaceModal.classList.add('open');
+        }
+        function closeReplaceSolutionModal() {
+            if (replaceModal) replaceModal.classList.remove('open');
+        }
+        document.getElementById('close-replace-modal-btn')?.addEventListener('click', closeReplaceSolutionModal);
+        document.getElementById('cancel-replace-btn')?.addEventListener('click', closeReplaceSolutionModal);
+
+        if (replaceForm) {
+            replaceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const paperId = document.getElementById('replace-solution-paper-id').value;
+                const fileInput = document.getElementById('replace-solution-file');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('Please select a solution PDF file.');
+                    return;
+                }
+                const btn = document.getElementById('replace-submit-btn');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+                btn.disabled = true;
+
+                const formData = new FormData();
+                formData.append('solutionFile', fileInput.files[0]);
+
+                try {
+                    const res = await fetch(`${API_BASE}/papers/${paperId}/replace-solution`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: formData
+                    });
+                    const json = await res.json();
+                    if (res.ok && json.success) {
+                        alert('Solution PDF replaced and re-indexing started.');
+                        closeReplaceSolutionModal();
+                        loadAdminPapers();
+                    } else {
+                        alert(json.message || 'Failed to replace solution PDF.');
+                    }
+                } catch (err) {
+                    console.error('Replace solution error:', err);
+                    alert('Network error during solution replacement.');
+                } finally {
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        // DELETE PAPER ACTION
+        async function handleDeletePaper(paperId) {
+            if (!confirm('Are you sure you want to delete this paper? All indexed chunks and Cloudinary files will be deleted.')) {
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/papers/${paperId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    loadAdminPapers();
+                    loadAdminStats();
+                } else {
+                    alert(json.message || 'Failed to delete paper.');
+                }
+            } catch (err) {
+                console.error('Delete paper error:', err);
+                alert('Network error while deleting paper.');
+            }
+        }
+
+        // 3. USERS TAB & ACTIONS
+        const userSearchInput = document.getElementById('admin-user-search-input');
+        const userSearchBtn = document.getElementById('admin-user-search-btn');
+
+        async function loadAdminUsers(search = '') {
+            const tbody = document.getElementById('admin-users-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading users...</td></tr>';
+            try {
+                const queryParam = search ? `?search=${encodeURIComponent(search)}` : '';
+                const res = await fetch(`${API_BASE}/admin/users${queryParam}`, {
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const users = json.data;
+                    if (users.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No users found.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = users.map(u => {
+                        const isUserAdmin = u.role === 'admin';
+                        const isSelf = currentUser && (currentUser._id === u.id || currentUser.id === u.id);
+                        const roleBadge = isUserAdmin 
+                            ? '<span class="status-badge" style="background: rgba(79, 70, 229, 0.15); color: var(--primary); font-weight:700;"><i class="fa-solid fa-shield-halved"></i> Admin</span>'
+                            : '<span class="status-badge none">User</span>';
+                        const verifiedBadge = u.isVerified 
+                            ? '<span class="status-badge ready"><i class="fa-solid fa-check"></i> Verified</span>'
+                            : '<span class="status-badge none">Unverified</span>';
+
+                        const actionBtn = isUserAdmin
+                            ? `<button type="button" class="btn-table danger btn-toggle-role" data-id="${u.id}" data-role="user" ${isSelf ? 'disabled title="You cannot demote yourself"' : ''}><i class="fa-solid fa-user-minus"></i> Remove Admin</button>`
+                            : `<button type="button" class="btn-table btn-toggle-role" data-id="${u.id}" data-role="admin"><i class="fa-solid fa-user-shield"></i> Make Admin</button>`;
+
+                        return `
+                            <tr>
+                                <td><strong>${escapeHTML(u.fullname || u.name || 'User')}</strong> ${isSelf ? '<span style="font-size:0.75rem; color:var(--text-muted);">(You)</span>' : ''}</td>
+                                <td>${escapeHTML(u.email)}</td>
+                                <td>${roleBadge}</td>
+                                <td>${verifiedBadge}</td>
+                                <td style="text-align: right; white-space: nowrap;">
+                                    ${actionBtn}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    tbody.querySelectorAll('.btn-toggle-role').forEach(btn => {
+                        btn.addEventListener('click', () => handleToggleUserRole(btn.dataset.id, btn.dataset.role));
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Failed to load users.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Error loading users:', err);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading users.</td></tr>';
+            }
+        }
+
+        async function handleToggleUserRole(userId, newRole) {
+            const actionText = newRole === 'admin' ? 'promote this user to Admin' : 'remove Admin privileges from this user';
+            if (!confirm(`Are you sure you want to ${actionText}?`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeaders()
+                    },
+                    body: JSON.stringify({ role: newRole })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    loadAdminUsers(userSearchInput ? userSearchInput.value.trim() : '');
+                } else {
+                    alert(json.message || 'Failed to update user role.');
+                }
+            } catch (err) {
+                console.error('Toggle role error:', err);
+                alert('Network error while updating role.');
+            }
+        }
+
+        if (userSearchBtn && userSearchInput) {
+            userSearchBtn.addEventListener('click', () => {
+                loadAdminUsers(userSearchInput.value.trim());
+            });
+            userSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    loadAdminUsers(userSearchInput.value.trim());
+                }
+            });
+        }
+
+        // 4. MESSAGES TAB & ACTIONS
+        const adminMessagesGrid = document.getElementById('admin-messages-grid');
+        async function fetchAdminMessages() {
+            if (!adminMessagesGrid) return;
+            adminMessagesGrid.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading messages...</div>';
+            try {
+                const res = await fetch(`${API_BASE}/messages?limit=50`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    adminMessagesGrid.innerHTML = data.data.map(msg => {
+                        const date = new Date(msg.createdAt).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        });
+                        const isRead = msg.status === 'read';
+                        const safeSubject = escapeHTML(msg.subject || 'General Inquiry');
+                        const safeName = escapeHTML(msg.userName || 'Student');
+                        const safeEmail = escapeHTML(msg.userEmail || '');
+                        const safeBody = escapeHTML(msg.body || '');
+                        const mailSubject = encodeURIComponent(`Re: ${msg.subject || 'General Inquiry'}`);
+                        const mailEmail = encodeURIComponent(msg.userEmail || '');
+
+                        const statusBadge = isRead
+                            ? '<span class="status-badge ready"><i class="fa-solid fa-check-double"></i> Read</span>'
+                            : '<span class="status-badge pending"><i class="fa-solid fa-envelope"></i> Unread</span>';
+
+                        return `
+                            <div style="background: var(--bg-card); padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); border-left: 4px solid ${isRead ? 'var(--border-color)' : 'var(--primary)'}; margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                                    <div>
+                                        <strong style="font-size: 1rem; color: var(--text-primary);">${safeSubject}</strong>
+                                        <div style="margin-top: 0.25rem;">${statusBadge}</div>
+                                    </div>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">${date}</span>
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                                    From: <strong style="color: var(--text-secondary);">${safeName}</strong> &lt;${safeEmail}&gt;
+                                </div>
+                                <p style="margin: 0 0 1.25rem 0; font-size: 0.95rem; line-height: 1.5; color: var(--text-primary); white-space: pre-wrap;">${safeBody}</p>
+                                <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+                                    <a href="mailto:${mailEmail}?subject=${mailSubject}" class="btn-table" style="text-decoration: none;">
+                                        <i class="fa-solid fa-reply"></i> Reply via Email
+                                    </a>
+                                    ${!isRead ? `<button type="button" class="btn-table btn-mark-read" data-id="${msg._id}"><i class="fa-solid fa-check"></i> Mark as Read</button>` : ''}
+                                    <button type="button" class="btn-table danger btn-delete-msg" data-id="${msg._id}"><i class="fa-solid fa-trash"></i> Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    adminMessagesGrid.querySelectorAll('.btn-mark-read').forEach(btn => {
+                        btn.addEventListener('click', () => handleMarkMessageRead(btn.dataset.id));
+                    });
+                    adminMessagesGrid.querySelectorAll('.btn-delete-msg').forEach(btn => {
+                        btn.addEventListener('click', () => handleDeleteMessage(btn.dataset.id));
+                    });
+                } else {
+                    adminMessagesGrid.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">No messages from students yet.</div>';
                 }
             } catch (err) {
                 console.error('Failed to load inbox:', err);
-                adminMessagesGrid.innerHTML = '<div style="color: #ff4a4a; text-align: center;">Error loading inbox.</div>';
+                adminMessagesGrid.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 2rem;">Error loading inbox.</div>';
             }
         }
-        
-        // Auto-fetch when admin page loads
-        fetchAdminMessages();
+
+        async function handleMarkMessageRead(messageId) {
+            try {
+                const res = await fetch(`${API_BASE}/admin/messages/${messageId}/read`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    fetchAdminMessages();
+                } else {
+                    alert(json.message || 'Failed to mark message as read.');
+                }
+            } catch (err) {
+                console.error('Mark read error:', err);
+            }
+        }
+
+        async function handleDeleteMessage(messageId) {
+            if (!confirm('Are you sure you want to delete this message?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/admin/messages/${messageId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    fetchAdminMessages();
+                } else {
+                    alert(json.message || 'Failed to delete message.');
+                }
+            } catch (err) {
+                console.error('Delete message error:', err);
+            }
+        }
+
+        // 5. COMMENTS TAB & ACTIONS
+        async function loadAdminComments() {
+            const tbody = document.getElementById('admin-comments-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading comments...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/admin/comments`, {
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const comments = json.data;
+                    if (comments.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No comments found across papers.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = comments.map(c => {
+                        const date = new Date(c.createdAt).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric'
+                        });
+                        return `
+                            <tr>
+                                <td><strong>${escapeHTML(c.paperTitle || 'Untitled Paper')}</strong></td>
+                                <td>${escapeHTML(c.userName || 'Student')}</td>
+                                <td style="max-width: 320px; word-break: break-word;">${escapeHTML(c.text)}</td>
+                                <td style="white-space: nowrap; font-size: 0.8rem; color: var(--text-muted);">${date}</td>
+                                <td style="text-align: right; white-space: nowrap;">
+                                    <button type="button" class="btn-table danger btn-delete-comment" data-paper-id="${c.paperId}" data-comment-id="${c.commentId}">
+                                        <i class="fa-solid fa-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    tbody.querySelectorAll('.btn-delete-comment').forEach(btn => {
+                        btn.addEventListener('click', () => handleDeleteComment(btn.dataset.paperId, btn.dataset.commentId));
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Failed to load comments.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Error loading comments:', err);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading comments.</td></tr>';
+            }
+        }
+
+        async function handleDeleteComment(paperId, commentId) {
+            if (!confirm('Are you sure you want to delete this comment?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/admin/comments/${paperId}/${commentId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    loadAdminComments();
+                    loadAdminStats();
+                } else {
+                    alert(json.message || 'Failed to delete comment.');
+                }
+            } catch (err) {
+                console.error('Delete comment error:', err);
+                alert('Network error while deleting comment.');
+            }
+        }
+
+        // Auto-fetch initial dashboard stats on page load
+        loadAdminStats();
     }
     // ==========================================
     // 🚫 SYSTEM 14: ADMIN ROUTE SECURITY LOCK
@@ -1834,37 +2229,92 @@ const cardHTML = `
     const isAdminPage = window.location.pathname.includes('admin.html');
 
     if (isAdminPage) {
-        // Agar user logged in nahi hai, YA FIR uska role 'admin' nahi hai
-        if (!currentUser || currentUser.role !== 'admin') {
-            alert('Security Alert: Access Denied! You do not have admin privileges.');
-            window.location.href = 'index.html'; // Seedha Home page par fek do
+        if (!isAdmin(currentUser)) {
+            window.location.replace(token ? 'index.html' : 'login.html');
         }
+    }
+
+    document.querySelectorAll('[data-navigation-target]').forEach((card) => {
+        const navigate = () => window.location.assign(card.dataset.navigationTarget);
+        card.addEventListener('click', navigate);
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                navigate();
+            }
+        });
+    });
+
+    // Exam Page Category Filter (exam.html)
+    const isExamPage = window.location.pathname.includes('exam.html');
+    if (isExamPage) {
+        const examFilterBtns = document.querySelectorAll('.papers-filter .filter-btn');
+        const examCards = document.querySelectorAll('.exam-grid .exam-card');
+
+        examFilterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                examFilterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const category = btn.textContent.trim().toLowerCase();
+                examCards.forEach(card => {
+                    const cardCategory = (card.getAttribute('data-category') || '').toLowerCase();
+                    if (category === 'all exams' || cardCategory === category) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+    }
+
+    // Account deletion notice (dashboard.html)
+    const deleteAccountBtn = document.querySelector('.danger-zone .profile-tool-btn.danger');
+    if (deleteAccountBtn) {
+        deleteAccountBtn.addEventListener('click', () => {
+            alert('Account deletion is not yet available online. Please contact the administrator.');
+        });
     }
 // ==========================================
     // 📨 SYSTEM 15: CONTACT FORM SUBMISSION
     // ==========================================
-   const contactForm = document.getElementById('contact-form');
-if (contactForm) {
-    contactForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userName = document.getElementById('contact-name').value;
-        const userEmail = document.getElementById('contact-email').value;
-        const subject = document.getElementById('contact-subject').value;
-        const body = document.getElementById('contact-message').value;
+    const contactForm = document.getElementById('contact-form');
+    if (contactForm) {
+        const contactNameInput = document.getElementById('contact-name');
+        const contactEmailInput = document.getElementById('contact-email');
+        if (currentUser) {
+            if (contactNameInput && currentUser.fullname) contactNameInput.value = currentUser.fullname;
+            if (contactEmailInput && currentUser.email) contactEmailInput.value = currentUser.email;
+        }
+
+        contactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('contact-form-status');
+            const subject = document.getElementById('contact-subject').value;
+            const body = document.getElementById('contact-message').value;
+
+            if (!token) {
+                status.textContent = 'Please sign in before sending a message.';
+                return;
+            }
 
         try {
             const res = await fetch(`${API_BASE}/messages`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userName, userEmail, subject, body })
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ subject, body })
             });
             const data = await res.json();
-            if(data.success) {
-                alert("Message Sent to Admin successfully!");
+            if (res.ok && data.success) {
+                status.textContent = 'Message sent to the admin.';
                 contactForm.reset();
+            } else {
+                status.textContent = data.message || 'Unable to send your message.';
             }
-        } catch(err) {
-            alert("Error sending message.");
+        } catch (err) {
+            console.error('Contact message submission failed:', err);
+            status.textContent = 'Unable to send your message. Please try again.';
         }
     });
 }
@@ -1890,10 +2340,7 @@ if (contactForm) {
             // Backend ko request bhejo
             const res = await fetch(`${apiBase}/papers/${paperId}/comments`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text: commentText }) // Hum 'text' bhej rahe hain
             });
 
@@ -1944,7 +2391,7 @@ const updateSavedPaperButton = (button, saved) => {
 const saveButton = document.getElementById('save-btn');
 if (saveButton && currentPaperId && token) {
     fetch(`${API_BASE}/papers/${currentPaperId}/save`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getAuthHeaders()
     })
         .then(async (res) => {
             const data = await res.json();
@@ -1954,19 +2401,14 @@ if (saveButton && currentPaperId && token) {
         .then((data) => updateSavedPaperButton(saveButton, data.saved))
         .catch((err) => console.error('Save status loading failed:', err));
 }
-// ==========================================
-    // 🖲️ SYSTEM 17: GLOBAL ACTION BUTTONS
-    // ==========================================
-   // =========================================================================
-// 🔥 MASTER ACTION ENGINE (Bulletproof Save Toggle + Smart PDF Download)
-// =========================================================================
 
+// =========================================================================
+// ?? MASTER ACTION ENGINE (Bulletproof Save Toggle + Smart PDF Download)
+// =========================================================================
 document.addEventListener('click', async (e) => {
     const urlParams = new URLSearchParams(window.location.search);
     const paperId = urlParams.get('id');
-    const token = localStorage.getItem('examvault_token');
 
-    // 1. 🔖 SAVE BUTTON CLICK (100% Guaranteed Toggle with data-attribute)
     const saveBtn = e.target.closest('#save-btn');
     if (saveBtn) {
         e.preventDefault();
@@ -1981,7 +2423,7 @@ document.addEventListener('click', async (e) => {
         try {
             const res = await fetch(`${API_BASE}/papers/${paperId}/save`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: getAuthHeaders()
             });
             const data = await res.json();
 
@@ -2001,96 +2443,48 @@ document.addEventListener('click', async (e) => {
         return;
     }
 
-    // 2. 📥 DOWNLOAD PDF BUTTON CLICK (Smart Fallback)
     const downloadBtn = e.target.closest('#download-pdf-btn');
     if (downloadBtn) {
+        if (currentPaperId && downloadBtn.getAttribute('href') && downloadBtn.getAttribute('href') !== '#') {
+            e.preventDefault();
+            try {
+                const response = await fetch(`${API_BASE}/papers/${encodeURIComponent(currentPaperId)}/download`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error('Download unavailable');
+                window.location.assign(toAbsoluteResourceUrl(data.url));
+            } catch (error) {
+                showToast('Download is unavailable right now.', 'error');
+            }
+            return;
+        }
         const currentHref = downloadBtn.getAttribute('href');
-        
-        // Agar href me abhi bhi "#" ya empty hai, toh iframe se link chura lo
         if (!currentHref || currentHref === '#' || currentHref === '') {
             e.preventDefault();
             const iframe = document.getElementById('pdf-frame');
-            
             if (iframe && iframe.src && iframe.src !== window.location.href && iframe.src !== 'about:blank') {
-                // Iframe ke PDF URL ko nayi tab me khol do
                 window.open(iframe.src, '_blank');
             } else {
                 alert('PDF is still loading or is not available on the server yet.');
             }
         }
-        // Agar currentHref sahi URL hai, toh normal <a target="_blank"> apna kaam karega
-        return;
-    }
-
-    // 3. ❤️ LIKE BUTTON CLICK
-    const likeBtn = e.target.closest('#like-btn');
-    if (likeBtn) {
-        e.preventDefault();
-        if (!token) return alert("Bhai, pehle login kar lo Like karne ke liye!");
-
-        try {
-            const res = await fetch(`${API_BASE}/papers/${paperId}/like`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                }
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                const icon = likeBtn.querySelector('i');
-                const countSpan = document.getElementById('likes-count');
-                
-                if (data.isLiked) {
-                    icon.className = 'fa-solid fa-heart';
-                    likeBtn.style.color = '#ff4757';
-                    likeBtn.style.borderColor = '#ff4757';
-                } else {
-                    icon.className = 'fa-regular fa-heart';
-                    likeBtn.style.color = '';
-                    likeBtn.style.borderColor = '';
-                }
-                if (countSpan && data.likesCount !== undefined) countSpan.innerText = `(${data.likesCount})`;
-            }
-        } catch (err) {
-            console.error("Like error:", err);
-        }
-        return;
-    }
-
-    // 4. 👎 DISLIKE BUTTON CLICK
-    const dislikeBtn = e.target.closest('#dislike-btn');
-    if (dislikeBtn) {
-        e.preventDefault();
-        if (!token) return alert("Pehle login kar lo Dislike karne ke liye!");
-
-        try {
-            const res = await fetch(`${API_BASE}/papers/${paperId}/dislike`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                }
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                const icon = dislikeBtn.querySelector('i');
-                if (data.isDisliked) {
-                    icon.className = 'fa-solid fa-thumbs-down';
-                    dislikeBtn.style.color = '#ffa502';
-                    dislikeBtn.style.borderColor = '#ffa502';
-                } else {
-                    icon.className = 'fa-regular fa-thumbs-down';
-                    dislikeBtn.style.color = '';
-                    dislikeBtn.style.borderColor = '';
-                }
-            }
-        } catch (err) {
-            console.error("Dislike error:", err);
-        }
         return;
     }
 });
+/**
+ * ExamVault Core Frontend Logic
+ * Note: AI Study Assistant logic is handled entirely in ai-assistant.js.
+ */
 
+document.addEventListener('DOMContentLoaded', () => {
+    initUtilityFunctions();
+});
+
+function initUtilityFunctions() {
+    // Utility to securely escape HTML
+    window.escapeHTML = function(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    };
+}

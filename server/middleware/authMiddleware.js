@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getUserRole } = require('../utils/userRole');
 
 // Guard 1: Verify if the user is Logged In
 const protect = async (req, res, next) => {
@@ -31,7 +32,7 @@ const protect = async (req, res, next) => {
 
 // Guard 2: Verify if the user is an Admin
 const admin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && getUserRole(req.user) === 'admin') {
         next(); // Allow entry
     } else {
         res.status(403).json({ success: false, message: 'Security Alert: Not authorized as an admin' });

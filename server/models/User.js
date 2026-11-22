@@ -2,29 +2,37 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-    fullname: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
+    fullname: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
-    role: { type: String, default: 'user' },
-    
-    isVerified: { type: Boolean, default: false }, // Default status: unverified
-    otp: { type: String }, // 6-digit code store karne ke liye
-    otpExpires: { type: Date }, // Security ke liye OTP 10 min mein expire hoga
+    role: { type: String, default: 'user', enum: ['user', 'admin'] },
+    userType: { type: String, enum: ['user', 'admin'] },
+    isVerified: { type: Boolean, default: false },
+    otp: { type: String },
+    otpExpires: { type: Date },
+    otpAttempts: { type: Number, default: 0 },
+    otpLastSent: { type: Date },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
     savedPapers: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Paper'
     }],
-
+    photoUrl: { type: String },
+    photoPublicId: { type: String },
+    profilePhoto: { type: String },
+    profileDetails: {
+        phone: { type: String },
+        institution: { type: String },
+        targetExam: { type: String },
+        city: { type: String },
+        studyTime: { type: String }
+    },
     createdAt: { type: Date, default: Date.now }
 });
 
-// FIX: Removing 'next' parameter parameter conflict from modern Mongoose asynchronous pipeline hooks
 userSchema.pre('save', async function() {
-    // If the password field wasn't touched or modified, skip hashing step completely
     if (!this.isModified('password')) return;
-
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
@@ -33,7 +41,6 @@ userSchema.pre('save', async function() {
     }
 });
 
-// Helper validation framework layout execution
 userSchema.methods.matchPassword = async function(enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
